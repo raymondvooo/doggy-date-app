@@ -1,8 +1,8 @@
-run: bin/doggy-date-go
-	@PATH="$(PWD)/bin:$(PATH)" heroku local
+run: bin/server
+	@PATH="$(PWD)/bin/doggy-date-go" heroku local
 
-bin/doggy-date-go: server.go
-	go build -o bin/bin/doggy-date-go server.go
+bin/server: server.go
+	go build -v -o bin/server server.go
 
 clean:
 	rm -rf bin

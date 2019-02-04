@@ -1,3 +1,13 @@
 {
-  "rootPath": "github.com/raymondvooo/doggy-date-app/server"
+	"comment": "",
+	"ignore": "",
+	"package": [
+		{
+			"checksumSHA1": "MNaEUnKz0MmAdEBZA2ZMKybIcr8=",
+			"path": "github.com/go-chi/chi",
+			"revision": "1a6bb108ccf279c8dac6f9bad857d773b4f9b421",
+			"revisionTime": "2019-01-17T22:35:40Z"
+		}
+	],
+	"rootPath": "github.com/raymondvooo/doggy-date-app/server"
 }
