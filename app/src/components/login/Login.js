@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import RegForm from './RegForm';
 import '../../App.css';
 import './Login.css';
 
@@ -24,6 +25,7 @@ class Login extends Component {
 
 
          <button className="btn btn-link">Need an Account?</button>
+         <RegForm />
     </div>
       
       </form>
