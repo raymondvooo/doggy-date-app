@@ -1,7 +1,7 @@
 package gql
 
 import (
-	// "fmt"
+	"fmt"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/raymondvooo/doggy-date-app/server/postgres"
 	"github.com/raymondvooo/doggy-date-app/server/types"
@@ -83,7 +83,7 @@ func (r *userResolver) Dogs() *[]*dogResolver {
 	if dogs, err := r.db.GetDogsByArray(r.u.Dogs); err == nil {
 		var dr []*dogResolver
 		for _, d := range dogs {
-			dr = append(dr, &dogResolver{d: &d, o: r.u})
+			dr = append(dr, &dogResolver{d: &d, db: r.db, o: r.u})
 		}
 		return &dr
 	}

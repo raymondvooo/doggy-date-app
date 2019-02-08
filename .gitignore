@@ -1,4 +1,5 @@
 server/vendor/**
+server/vendor/vendor.json
 server/.env
 node_modules/
 app/.pnp
