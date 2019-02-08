@@ -1,7 +1,7 @@
 package gql
 
 import (
-	"fmt"
+	// "fmt"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/raymondvooo/doggy-date-app/server/postgres"
 	"github.com/raymondvooo/doggy-date-app/server/types"
