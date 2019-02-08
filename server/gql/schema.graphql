@@ -1,0 +1,37 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+# The query type, represents all of the entry points into our object graph
+type Query {
+  user(id: ID!): User
+  dog(id: ID!): Dog
+}
+
+type User {
+  id: ID!
+  name: String
+  email: String
+  dogs: [Dog]
+}
+
+type Dog {
+  id: ID!
+  name: String
+  age: Int
+  breed: String
+  owner: User!
+}
+
+# The mutation type, represents all updates we can make to our data
+type Mutation {
+  createUser(
+    id: ID!
+    name: String!
+    email: String!
+    dogId: ID!
+    dogName: String!
+    dogAge: Int!
+    dogBreed: String!
+  ): User!
+}
