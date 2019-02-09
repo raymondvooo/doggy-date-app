@@ -7,36 +7,32 @@ import (
 	"github.com/raymondvooo/doggy-date-app/server/types"
 )
 
+// Resolver has a reference database
 type Resolver struct {
 	Db *postgres.Db
 }
 
-// func (r *Resolver) User(args struct{ ID graphql.ID }) (*userResolver, error) {
-// 	if user := userData[args.ID]; user != nil {
-// 		data := &userResolver{user}
-// 		return data, nil
-// 	}
-// 	return &userResolver{}, nil
-// }
-
-func (r *Resolver) User(args struct{ ID graphql.ID }) (*userResolver, error) {
+// User graphql query
+func (r *Resolver) User(args struct{ ID graphql.ID }) (*UserResolver, error) {
 	user, err := r.Db.GetUsersById(args.ID)
 	if err != nil {
-		return &userResolver{nil, r.Db}, err
+		return &UserResolver{nil, r.Db}, err
 	}
-	data := &userResolver{&user, r.Db}
+	data := &UserResolver{&user, r.Db}
 	return data, nil
 }
 
-func (r *Resolver) Dog(args struct{ ID graphql.ID }) (*dogResolver, error) {
+// Dog graphql query
+func (r *Resolver) Dog(args struct{ ID graphql.ID }) (*DogResolver, error) {
 	dog, user, err := r.Db.GetDogById(args.ID)
 	if err != nil {
-		return &dogResolver{}, err
+		return &DogResolver{&types.Dog{}, r.Db, &user}, err
 	}
-	data := &dogResolver{&dog, r.Db, &user}
+	data := &DogResolver{&dog, r.Db, &user}
 	return data, nil
 }
 
+// CreateUser graphql mutation
 func (r *Resolver) CreateUser(args *struct {
 	ID       graphql.ID
 	Name     string
@@ -45,87 +41,88 @@ func (r *Resolver) CreateUser(args *struct {
 	DogName  string
 	DogAge   int32
 	DogBreed string
-}) (*userResolver, error) {
+}) (*UserResolver, error) {
 	var err error
-	if dogID, err := r.Db.InsertDog(args.DogID, args.DogName, args.DogAge, args.DogBreed, args.ID); err == nil {
-		if u, err := r.Db.InsertUser(args.ID, args.Name, args.Email, dogID); err == nil {
-			return &userResolver{&u, r.Db}, nil
+	if uidExists, err := r.Db.CheckIDExists("users", args.ID); !uidExists && err != nil { // check existing userID
+		if didExists, err := r.Db.CheckIDExists("dogs", args.DogID); !didExists && err != nil { //check existing dogID
+			if dogID, err := r.Db.InsertDog(args.DogID, args.DogName, args.DogAge, args.DogBreed, args.ID); err == nil { // add user data into db
+				if u, err := r.Db.InsertUser(args.ID, args.Name, args.Email, dogID); err == nil { // add dog data into db
+					return &UserResolver{&u, r.Db}, nil
+				}
+				return &UserResolver{&types.User{}, r.Db}, err
+			}
+			r.Db.DeleteDog(args.DogID)
+			return &UserResolver{&types.User{}, r.Db}, err
 		}
-		return &userResolver{}, err
+		return &UserResolver{&types.User{}, r.Db}, err
 	}
-	return &userResolver{}, err
+	return &UserResolver{&types.User{}, r.Db}, err
 }
 
-type userResolver struct {
+// UserResolver structure to resolve a user object type to graphql
+type UserResolver struct {
 	u  *types.User
 	db *postgres.Db
 }
 
-type dogResolver struct {
+// DogResolver structure to resolve a dog object type to graphql
+type DogResolver struct {
 	d  *types.Dog
 	db *postgres.Db
 	o  *types.User
 }
 
-func (r *userResolver) ID() graphql.ID {
+// ID function required by graphql to return user's ID
+func (r *UserResolver) ID() graphql.ID {
 	return r.u.ID
 }
 
-func (r *userResolver) Name() *string {
+// Name function required by graphql to return user's name
+func (r *UserResolver) Name() *string {
 	return &r.u.Name
 }
 
-func (r *userResolver) Email() *string {
+// Email function required by graphql to return user's email
+func (r *UserResolver) Email() *string {
 	return &r.u.Email
 }
 
-func (r *userResolver) Dogs() *[]*dogResolver {
+// Dogs function required by graphql to return user's Dog array object
+func (r *UserResolver) Dogs() *[]*DogResolver {
 	if dogs, err := r.db.GetDogsByArray(r.u.Dogs); err == nil {
-		var dr []*dogResolver
+		var dr []*DogResolver
 		for _, d := range dogs {
-			dr = append(dr, &dogResolver{d: &d, db: r.db, o: r.u})
+			dr = append(dr, &DogResolver{d: &d, db: r.db, o: r.u})
 		}
 		return &dr
 	}
-	return &[]*dogResolver{}
+	return &[]*DogResolver{{&types.Dog{}, r.db, &types.User{}}}
 }
 
-// func resolveDogs(ids []graphql.ID) *[]*dogResolver {
-// 	var dogs []*dogResolver
-// 	for _, id := range ids {
-// 		if d := resolveDog(id); d != nil {
-// 			dogs = append(dogs, d)
-// 		}
-// 	}
-// 	return &dogs
-// }
-
-// func resolveDog(id graphql.ID) *dogResolver {
-// 	if d, ok := dogData[id]; ok {
-// 		return &dogResolver{d}
-// 	}
-// 	return nil
-// }
-
-func (r *dogResolver) ID() graphql.ID {
+// ID function required by graphql to return dogs's ID
+func (r *DogResolver) ID() graphql.ID {
 	return r.d.ID
 }
 
-func (r *dogResolver) Name() *string {
+// Name function required by graphql to return dogs's name
+func (r *DogResolver) Name() *string {
 	return &r.d.Name
 }
 
-func (r *dogResolver) Age() *int32 {
+// Age function required by graphql to return user's Age
+func (r *DogResolver) Age() *int32 {
 	return &r.d.Age
 }
 
-func (r *dogResolver) Breed() *string {
+// Breed function required by graphql to return dogs's Age
+func (r *DogResolver) Breed() *string {
 	return &r.d.Breed
 }
 
-func (r *dogResolver) Owner() *userResolver {
+// Owner function required by graphql to return dogs's User object
+func (r *DogResolver) Owner() *UserResolver {
 	if u := r.o; u != nil {
-		return &userResolver{u: u, db: r.db}
+		return &UserResolver{u: u, db: r.db}
 	}
 	return nil
 }

@@ -14,24 +14,10 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/graph-gophers/graphql-go/relay"
+	"github.com/raymondvooo/doggy-date-app/server/api"
 	"github.com/raymondvooo/doggy-date-app/server/gql"
 	"github.com/raymondvooo/doggy-date-app/server/postgres"
 )
-
-type User struct {
-	ID    graphql.ID
-	Name  string
-	Email string
-	Dogs  []graphql.ID
-}
-
-type Dog struct {
-	ID    graphql.ID
-	Name  string
-	Age   int32
-	Breed string
-	Owner graphql.ID
-}
 
 func main() {
 	port, exists := os.LookupEnv("PORT")
@@ -99,6 +85,12 @@ func main() {
 
 	// Create the graphql route with a Server method to handle it
 	router.Handle("/graphql", &relay.Handler{Schema: schema})
+
+	router.Route("/emailExists", func(router chi.Router) {
+		router.Post("/", func(w http.ResponseWriter, req *http.Request) {
+			api.CheckEmailExists(w, req, db)
+		})
+	})
 	defer db.Close()
 	http.ListenAndServe(":"+port, router)
 

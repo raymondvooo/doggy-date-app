@@ -55,10 +55,10 @@ func (d *Db) GetUsersById(id graphql.ID) (types.User, error) {
 
 // GetDogById is called within our user query for graphql
 func (d *Db) GetDogById(id graphql.ID) (types.Dog, types.User, error) {
-	// Prepare query, takes a name argument, protects from sql injection
+	// Prepare query, takes a id argument, protects from sql injection
 	stmt, err := d.Prepare("SELECT * FROM dogs WHERE id=$1")
 	if err != nil {
-		fmt.Println("GetDogById Preperation Err: ", err)
+		fmt.Println("GetDogById Preparation Err: ", err)
 	}
 	defer stmt.Close()
 	var dog types.Dog
@@ -86,10 +86,10 @@ func (d *Db) GetDogById(id graphql.ID) (types.Dog, types.User, error) {
 
 // GetDogsByArray is called within our dogs query for graphql
 func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
-	// Prepare query, takes a name argument, protects from sql injection
+	// Prepare query, takes a id argument, protects from sql injection
 	stmt, err := d.Prepare("SELECT * FROM dogs WHERE id= ANY($1)")
 	if err != nil {
-		fmt.Println("GetDogsByArray Preperation Err: ", err)
+		fmt.Println("GetDogsByArray Preparation Err: ", err)
 	}
 	defer stmt.Close()
 	var ds []string
@@ -125,11 +125,11 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
 
 // InsertUser queries database to insert user row
 func (d *Db) InsertUser(id graphql.ID, name string, email string, dogId graphql.ID) (types.User, error) {
-	// Prepare query, takes a name argument, protects from sql injection
+	// Prepare query, takes arguments, protects from sql injection
 	var di = []string{string(dogId)}
 	stmt, err := d.Prepare("INSERT INTO users VALUES ($1, $2, $3, $4)")
 	if err != nil {
-		fmt.Println("InsertUser Preperation Err: ", err)
+		fmt.Println("InsertUser Preparation Err: ", err)
 	}
 	defer stmt.Close()
 	fmt.Println("YEH EXECUTE USER")
@@ -141,18 +141,64 @@ func (d *Db) InsertUser(id graphql.ID, name string, email string, dogId graphql.
 
 // InsertDog queries database to insert dog row
 func (d *Db) InsertDog(id graphql.ID, name string, age int32, breed string, ownerId graphql.ID) (graphql.ID, error) {
-	// Prepare query, takes a name argument, protects from sql injection
+	// Prepare query, takes arguments, protects from sql injection
 	stmt, err := d.Prepare("INSERT INTO dogs VALUES ($1, $2, $3, $4, $5)")
 	if err != nil {
-		fmt.Println("InsertDog Preperation Err: ", err)
+		fmt.Println("InsertDog Preparation Err: ", err)
 	}
 	defer stmt.Close()
 
-	fmt.Println("YEH EXECUTE DOG")
 	if _, err := stmt.Exec(string(id), name, int64(age), breed, string(ownerId)); err != nil {
 		return "", err
 	}
 	return id, nil
+}
+
+// DeleteDog queries database to insert dog row
+func (d *Db) DeleteDog(id graphql.ID) (bool, error) {
+	// Prepare query, takes a id argument, protects from sql injection
+	stmt, err := d.Prepare("DELETE FROM dogs WHERE id=$1")
+	if err != nil {
+		fmt.Println("DeleteDog Preparation Err: ", err)
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(string(id)); err != nil {
+		return true, err
+	}
+	return false, nil
+}
+
+// CheckIDExists queries database if user or dog ID exists
+func (d *Db) CheckIDExists(tableType string, id graphql.ID) (bool, error) {
+	q := fmt.Sprintf("SELECT id FROM %s WHERE id=$1", tableType)
+	fmt.Println(q)
+	stmt, err := d.Prepare(q)
+	if err != nil {
+		fmt.Println("CheckIDExists Preparation Err: ", err)
+	}
+	var exists string
+	err = stmt.QueryRow(string(id)).Scan(&exists)
+	if err == sql.ErrNoRows {
+		fmt.Println("CheckIDExists Query Err: ", err)
+		return false, err
+	}
+	return true, nil
+}
+
+// CheckEmailExists queries database if email exists
+func (d *Db) CheckEmailExists(email string) (bool, error) {
+	stmt, err := d.Prepare("SELECT email FROM users WHERE email=$1")
+	if err != nil {
+		fmt.Println("CheckEmailExists Preparation Err: ", err)
+	}
+	var exists string
+	err = stmt.QueryRow(email).Scan(&exists)
+	if err == sql.ErrNoRows {
+		fmt.Println("CheckEmailExists Query Err: ", err)
+		return false, err
+	}
+	return true, nil
 }
 
 // StringToGraphqlID convert string array to graphqlID array
