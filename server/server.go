@@ -23,7 +23,7 @@ func main() {
 	port, exists := os.LookupEnv("PORT")
 
 	if !exists {
-		port = "8081"
+		port = "8080"
 	}
 	log.Printf("Starting server on port %s\n", port)
 
@@ -84,13 +84,22 @@ func main() {
 	})
 
 	// Create the graphql route with a Server method to handle it
-	router.Handle("/graphql", &relay.Handler{Schema: schema})
+	router.Route("/graphql", func(router chi.Router) {
+		router.Handle("/", &relay.Handler{Schema: schema})
+		// router.Handle("/date", &relay.Handler{Schema: schema})
+	})
 
 	router.Route("/emailExists", func(router chi.Router) {
 		router.Post("/", func(w http.ResponseWriter, req *http.Request) {
 			api.CheckEmailExists(w, req, db)
 		})
 	})
+
+	// router.Route("/planDate", func(router chi.Router) {
+	// 	router.Post("/", func(w http.ResponseWriter, req *http.Request) {
+	// 		api.PlanDate()
+	// 	})
+	// })
 	defer db.Close()
 	http.ListenAndServe(":"+port, router)
 

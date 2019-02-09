@@ -1,7 +1,7 @@
 package gql
 
 import (
-	// "fmt"
+	"fmt"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/raymondvooo/doggy-date-app/server/postgres"
 	"github.com/raymondvooo/doggy-date-app/server/types"
@@ -10,6 +10,26 @@ import (
 // Resolver has a reference database
 type Resolver struct {
 	Db *postgres.Db
+}
+
+// UserResolver structure to resolve a User object type to graphql
+type UserResolver struct {
+	u  *types.User
+	Db *postgres.Db
+}
+
+// DogResolver structure to resolve a Dog object type to graphql
+type DogResolver struct {
+	d  *types.Dog
+	Db *postgres.Db
+	o  *types.User
+}
+
+// DoggyDateResolver structure to resolve a DoggyDate object type to graphql
+type DoggyDateResolver struct {
+	date *types.Date
+	Db   *postgres.Db
+	u    *types.User
 }
 
 // User graphql query
@@ -59,19 +79,6 @@ func (r *Resolver) CreateUser(args *struct {
 	return &UserResolver{&types.User{}, r.Db}, err
 }
 
-// UserResolver structure to resolve a user object type to graphql
-type UserResolver struct {
-	u  *types.User
-	db *postgres.Db
-}
-
-// DogResolver structure to resolve a dog object type to graphql
-type DogResolver struct {
-	d  *types.Dog
-	db *postgres.Db
-	o  *types.User
-}
-
 // ID function required by graphql to return user's ID
 func (r *UserResolver) ID() graphql.ID {
 	return r.u.ID
@@ -89,14 +96,14 @@ func (r *UserResolver) Email() *string {
 
 // Dogs function required by graphql to return user's Dog array object
 func (r *UserResolver) Dogs() *[]*DogResolver {
-	if dogs, err := r.db.GetDogsByArray(r.u.Dogs); err == nil {
+	if dogs, err := r.Db.GetDogsByArray(r.u.Dogs); err == nil {
 		var dr []*DogResolver
 		for _, d := range dogs {
-			dr = append(dr, &DogResolver{d: &d, db: r.db, o: r.u})
+			dr = append(dr, &DogResolver{d: &d, Db: r.Db, o: r.u})
 		}
 		return &dr
 	}
-	return &[]*DogResolver{{&types.Dog{}, r.db, &types.User{}}}
+	return &[]*DogResolver{{&types.Dog{}, r.Db, &types.User{}}}
 }
 
 // ID function required by graphql to return dogs's ID
@@ -122,7 +129,66 @@ func (r *DogResolver) Breed() *string {
 // Owner function required by graphql to return dogs's User object
 func (r *DogResolver) Owner() *UserResolver {
 	if u := r.o; u != nil {
-		return &UserResolver{u: u, db: r.db}
+		return &UserResolver{u: u, Db: r.Db}
 	}
 	return nil
+}
+
+// PlanDate graphql mutation
+func (r *Resolver) PlanDate(args *struct {
+	ID          graphql.ID
+	Date        string
+	Description string
+	Dogs        []graphql.ID
+	Location    string
+	User        graphql.ID
+}) (*DoggyDateResolver, error) {
+	if did, err := r.Db.CheckIDExists("doggy_dates", args.ID); !did && err != nil { // false, err
+		if date, err := r.Db.InsertDoggyDate(args.ID, args.Date, args.Description, args.Dogs, args.Location, args.User); err == nil {
+			user, err := r.Db.GetUsersById(args.User)
+			if err != nil {
+				return &DoggyDateResolver{&date, r.Db, &types.User{}}, err
+			}
+			return &DoggyDateResolver{&date, r.Db, &user}, err
+		}
+		return &DoggyDateResolver{&types.Date{}, r.Db, &types.User{}}, err
+	}
+	return &DoggyDateResolver{&types.Date{}, r.Db, &types.User{}}, fmt.Errorf("Doggy Date ID: %s already exists in database", args.ID)
+}
+
+// ID function required by graphql to return DoggyDates's ID
+func (r *DoggyDateResolver) ID() graphql.ID {
+	return r.date.ID
+}
+
+// Date function required by graphql to return DoggyDates's ID
+func (r *DoggyDateResolver) Date() *string {
+	return &r.date.Date
+}
+
+// Description function required by graphql to return DoggyDates's ID
+func (r *DoggyDateResolver) Description() *string {
+	return &r.date.Description
+}
+
+// Dogs function required by graphql to return DoggyDates's ID
+func (r *DoggyDateResolver) Dogs() *[]*DogResolver {
+	if dogs, err := r.Db.GetDogsByArray(r.date.Dogs); err == nil {
+		var dr []*DogResolver
+		for _, d := range dogs {
+			dr = append(dr, &DogResolver{d: &d, Db: r.Db, o: r.u})
+		}
+		return &dr
+	}
+	return &[]*DogResolver{{&types.Dog{}, r.Db, &types.User{}}}
+}
+
+// Location function required by graphql to return DoggyDates's ID
+func (r *DoggyDateResolver) Location() *string {
+	return &r.date.Location
+}
+
+// User function required by graphql to return DoggyDates's ID
+func (r *DoggyDateResolver) User() *UserResolver {
+	return &UserResolver{r.u, r.Db}
 }

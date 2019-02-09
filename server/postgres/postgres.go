@@ -34,11 +34,16 @@ func NewConnection(connect string) (*Db, error) {
 
 // GetUsersById is called within our user query for graphql
 func (d *Db) GetUsersById(id graphql.ID) (types.User, error) {
+	// Prepare query, takes a id argument, protects from sql injection
+	stmt, err := d.Prepare("SELECT * FROM users WHERE id=$1")
+	if err != nil {
+		fmt.Println("GetUsersById Preparation Err: ", err)
+	}
+	defer stmt.Close()
 	var u types.User
-	var qString = "SELECT * FROM users WHERE id=$1"
 	var qDog []string
 	// Make database query
-	err := d.QueryRow(qString, id).Scan(
+	err = stmt.QueryRow(id).Scan(
 		&u.ID,
 		&u.Name,
 		&u.Email,
@@ -63,7 +68,7 @@ func (d *Db) GetDogById(id graphql.ID) (types.Dog, types.User, error) {
 	defer stmt.Close()
 	var dog types.Dog
 	var u types.User
-	// Make query with our stmt, passing in name argument
+	// Make query with our stmt, passing in id argument
 	err = stmt.QueryRow(id).Scan(
 		&dog.ID,
 		&dog.Name,
@@ -94,8 +99,7 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
 	defer stmt.Close()
 	var ds []string
 	ds = GraphqlIDToString(dogIds, ds)
-	// dogString := "{" + strings.Join(ds, ", ") + "}"
-	// Make query with our stmt, passing in name argument
+	// Make query with our stmt, passing in id argument
 	rows, err := stmt.Query(pq.Array(ds))
 	if err != nil {
 		fmt.Println("GetDogByName Query Err: ", err)
@@ -132,7 +136,6 @@ func (d *Db) InsertUser(id graphql.ID, name string, email string, dogId graphql.
 		fmt.Println("InsertUser Preparation Err: ", err)
 	}
 	defer stmt.Close()
-	fmt.Println("YEH EXECUTE USER")
 	if _, err := stmt.Exec(string(id), name, email, pq.Array(di)); err != nil {
 		return types.User{}, err
 	}
@@ -152,6 +155,22 @@ func (d *Db) InsertDog(id graphql.ID, name string, age int32, breed string, owne
 		return "", err
 	}
 	return id, nil
+}
+
+// InsertDoggyDate queries database to insert dog row
+func (d *Db) InsertDoggyDate(id graphql.ID, date string, description string, dogIds []graphql.ID, location string, user graphql.ID) (types.Date, error) {
+	stmt, err := d.Prepare("INSERT INTO doggy_dates VALUES ($1, $2, $3, $4, $5, $6)")
+	if err != nil {
+		fmt.Println("InsertInsertDoggyDateDog Preparation Err: ", err)
+	}
+	defer stmt.Close()
+	var ds []string
+	ds = GraphqlIDToString(dogIds, ds)
+	if _, err := stmt.Exec(string(id), date, description, pq.Array(ds), location, string(user)); err != nil {
+		fmt.Println("InsertDoggyDate Exec Err: ", err)
+		return types.Date{}, err
+	}
+	return types.Date{ID: id, Date: date, Description: description, Dogs: dogIds, Location: location, User: user}, nil
 }
 
 // DeleteDog queries database to insert dog row

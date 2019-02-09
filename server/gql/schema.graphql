@@ -6,13 +6,14 @@ schema {
 type Query {
   user(id: ID!): User
   dog(id: ID!): Dog
+  # getDates: DoggyDate
 }
 
 type User {
   id: ID!
   name: String
   email: String
-  dogs: [Dog]
+  dogs: [Dog] #cannot use !
 }
 
 type Dog {
@@ -21,6 +22,15 @@ type Dog {
   age: Int
   breed: String
   owner: User!
+}
+
+type DoggyDate {
+  id: ID!
+  date: String
+  description: String
+  dogs: [Dog] #cannot use !
+  location: String
+  user: User!
 }
 
 # The mutation type, represents all updates we can make to our data
@@ -33,5 +43,14 @@ type Mutation {
     dogName: String!
     dogAge: Int!
     dogBreed: String!
-  ): User!
+  ): User
+
+  planDate(
+    id: ID! # must use !
+    date: String! # must use !
+    description: String! # must use !
+    dogs: [ID!]! # must use !
+    location: String! # must use !
+    user: ID! # must use !
+  ): DoggyDate
 }

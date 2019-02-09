@@ -18,3 +18,12 @@ type Dog struct {
 	Breed string
 	Owner graphql.ID
 }
+
+type Date struct {
+	ID          graphql.ID
+	Date        string
+	Description string
+	Dogs        []graphql.ID
+	Location    string
+	User        graphql.ID
+}
