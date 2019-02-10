@@ -62,21 +62,21 @@ func (r *Resolver) CreateUser(args *struct {
 	DogAge   int32
 	DogBreed string
 }) (*UserResolver, error) {
-	var err error
 	if uidExists, err := r.Db.CheckIDExists("users", args.ID); !uidExists && err != nil { // check existing userID
 		if didExists, err := r.Db.CheckIDExists("dogs", args.DogID); !didExists && err != nil { //check existing dogID
 			if dogID, err := r.Db.InsertDog(args.DogID, args.DogName, args.DogAge, args.DogBreed, args.ID); err == nil { // add user data into db
 				if u, err := r.Db.InsertUser(args.ID, args.Name, args.Email, dogID); err == nil { // add dog data into db
 					return &UserResolver{&u, r.Db}, nil
+				} else {
+					r.Db.DeleteDog(args.DogID) //error adding user to database, so delete dog associated
+					return &UserResolver{&types.User{}, r.Db}, err
 				}
-				return &UserResolver{&types.User{}, r.Db}, err
 			}
-			r.Db.DeleteDog(args.DogID)
 			return &UserResolver{&types.User{}, r.Db}, err
 		}
-		return &UserResolver{&types.User{}, r.Db}, err
+		return &UserResolver{&types.User{}, r.Db}, fmt.Errorf("dog ID: %s already exists in database", args.ID)
 	}
-	return &UserResolver{&types.User{}, r.Db}, err
+	return &UserResolver{&types.User{}, r.Db}, fmt.Errorf("user ID: %s already exists in database", args.ID)
 }
 
 // ID function required by graphql to return user's ID

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/raymondvooo/doggy-date-app/server/types"
+	uuid "github.com/satori/go.uuid"
 
 	// postgres driver
 	"github.com/lib/pq"
@@ -43,7 +44,8 @@ func (d *Db) GetUsersById(id graphql.ID) (types.User, error) {
 	var u types.User
 	var qDog []string
 	// Make database query
-	err = stmt.QueryRow(id).Scan(
+	uid, _ := uuid.FromString(string(id))
+	err = stmt.QueryRow(uid).Scan(
 		&u.ID,
 		&u.Name,
 		&u.Email,
@@ -97,10 +99,10 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
 		fmt.Println("GetDogsByArray Preparation Err: ", err)
 	}
 	defer stmt.Close()
-	var ds []string
-	ds = GraphqlIDToString(dogIds, ds)
+	var dus []uuid.UUID
+	dus = GraphqlIDToUUID(dogIds, dus)
 	// Make query with our stmt, passing in id argument
-	rows, err := stmt.Query(pq.Array(ds))
+	rows, err := stmt.Query(pq.Array(dus))
 	if err != nil {
 		fmt.Println("GetDogByName Query Err: ", err)
 	}
@@ -130,13 +132,16 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
 // InsertUser queries database to insert user row
 func (d *Db) InsertUser(id graphql.ID, name string, email string, dogId graphql.ID) (types.User, error) {
 	// Prepare query, takes arguments, protects from sql injection
-	var di = []string{string(dogId)}
+	did, _ := uuid.FromString(string(dogId))
+	var di = []uuid.UUID{did}
 	stmt, err := d.Prepare("INSERT INTO users VALUES ($1, $2, $3, $4)")
 	if err != nil {
 		fmt.Println("InsertUser Preparation Err: ", err)
 	}
 	defer stmt.Close()
-	if _, err := stmt.Exec(string(id), name, email, pq.Array(di)); err != nil {
+	uid, _ := uuid.FromString(string(id))
+	if _, err := stmt.Exec(uid, name, email, pq.Array(di)); err != nil {
+		fmt.Println("InsertUser Execution Err: ", err)
 		return types.User{}, err
 	}
 	return types.User{ID: id, Name: name, Email: email, Dogs: []graphql.ID{dogId}}, nil
@@ -150,8 +155,10 @@ func (d *Db) InsertDog(id graphql.ID, name string, age int32, breed string, owne
 		fmt.Println("InsertDog Preparation Err: ", err)
 	}
 	defer stmt.Close()
-
-	if _, err := stmt.Exec(string(id), name, int64(age), breed, string(ownerId)); err != nil {
+	did, _ := uuid.FromString(string(id))
+	uid, _ := uuid.FromString(string(ownerId))
+	if _, err := stmt.Exec(did, name, int64(age), breed, uid); err != nil {
+		fmt.Println("InsertDog Execution Err: ", err)
 		return "", err
 	}
 	return id, nil
@@ -164,9 +171,11 @@ func (d *Db) InsertDoggyDate(id graphql.ID, date string, description string, dog
 		fmt.Println("InsertInsertDoggyDateDog Preparation Err: ", err)
 	}
 	defer stmt.Close()
-	var ds []string
-	ds = GraphqlIDToString(dogIds, ds)
-	if _, err := stmt.Exec(string(id), date, description, pq.Array(ds), location, string(user)); err != nil {
+	var dus []uuid.UUID
+	dus = GraphqlIDToUUID(dogIds, dus)
+	did, _ := uuid.FromString(string(id))
+	uid, _ := uuid.FromString(string(user))
+	if _, err := stmt.Exec(did, date, description, pq.Array(dus), location, uid); err != nil {
 		fmt.Println("InsertDoggyDate Exec Err: ", err)
 		return types.Date{}, err
 	}
@@ -181,8 +190,8 @@ func (d *Db) DeleteDog(id graphql.ID) (bool, error) {
 		fmt.Println("DeleteDog Preparation Err: ", err)
 	}
 	defer stmt.Close()
-
-	if _, err := stmt.Exec(string(id)); err != nil {
+	did, _ := uuid.FromString(string(id))
+	if _, err := stmt.Exec(did); err != nil {
 		return true, err
 	}
 	return false, nil
@@ -197,7 +206,9 @@ func (d *Db) CheckIDExists(tableType string, id graphql.ID) (bool, error) {
 		fmt.Println("CheckIDExists Preparation Err: ", err)
 	}
 	var exists string
-	err = stmt.QueryRow(string(id)).Scan(&exists)
+	uid, _ := uuid.FromString(string(id))
+	err = stmt.QueryRow(uid).Scan(&exists)
+	fmt.Println(err)
 	if err == sql.ErrNoRows {
 		fmt.Println("CheckIDExists Query Err: ", err)
 		return false, err
@@ -227,10 +238,11 @@ func StringToGraphqlID(s []string, gqlS *[]graphql.ID) {
 	}
 }
 
-// GraphqlIDToString convert graphqlID array to string array
-func GraphqlIDToString(gqlS []graphql.ID, s []string) []string {
+// GraphqlIDToUUID convert graphqlID array to string array
+func GraphqlIDToUUID(gqlS []graphql.ID, u []uuid.UUID) []uuid.UUID {
 	for _, id := range gqlS {
-		s = append(s, string(id))
+		x, _ := uuid.FromString(string(id))
+		u = append(u, x)
 	}
-	return s
+	return u
 }
