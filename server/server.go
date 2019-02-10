@@ -9,6 +9,10 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
@@ -32,6 +36,14 @@ func main() {
 	if localEnvError != nil {
 		log.Println("Error loading .env file")
 	}
+
+	creds := credentials.NewStaticCredentials(os.Getenv("AWSAccessKeyId"), os.Getenv("AWSSecretKey"), "")
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region:      aws.String("us-west-1"),
+		Credentials: creds}))
+
+	cfg := aws.NewConfig().WithRegion("us-west-1").WithCredentials(creds).WithLogLevel(aws.LogDebug)
+	s3b := s3.New(sess, cfg)
 
 	pgDb := os.Getenv("DATABASE_URL")
 	if len(pgDb) == 0 {
@@ -71,8 +83,8 @@ func main() {
 		render.SetContentType(render.ContentTypeJSON), // set content-type headers as application/json
 		// middleware.Logger,          // log api request calls
 		middleware.DefaultCompress, // compress results, mostly gzipping assets and json
-		// middleware.StripSlashes,    // match paths with a trailing slash, strip it, and continue routing through the mux
-		middleware.Recoverer, // recover from panics without crashing server
+		middleware.StripSlashes,    // match paths with a trailing slash, strip it, and continue routing through the mux
+		middleware.Recoverer,       // recover from panics without crashing server
 	)
 
 	router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -95,11 +107,12 @@ func main() {
 		})
 	})
 
-	// router.Route("/planDate", func(router chi.Router) {
-	// 	router.Post("/", func(w http.ResponseWriter, req *http.Request) {
-	// 		api.PlanDate()
-	// 	})
-	// })
+	router.Route("/upload", func(router chi.Router) {
+		router.Post("/", func(w http.ResponseWriter, req *http.Request) {
+			api.UploadImage(w, req, db, s3b)
+		})
+	})
+
 	defer db.Close()
 	http.ListenAndServe(":"+port, router)
 
