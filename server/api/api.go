@@ -82,4 +82,5 @@ func UploadImage(w http.ResponseWriter, req *http.Request, db *postgres.Db, s3bu
 		}
 		w.WriteHeader(http.StatusForbidden)
 	}
+	fmt.Printf("response %s", awsutil.StringValue(resp))
 }
