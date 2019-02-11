@@ -7,6 +7,7 @@ import (
 	"github.com/minio/minio-go"
 	"github.com/raymondvooo/doggy-date-app/server/postgres"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -41,7 +42,7 @@ func CheckEmailExists(w http.ResponseWriter, req *http.Request, db *postgres.Db)
 
 // UploadAnyS3 upload any file to S3
 func UploadAnyS3(w http.ResponseWriter, req *http.Request, minioClient *minio.Client) {
-	//Create context for cancel deadline signal
+	// Create context for cancel deadline signal
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -51,17 +52,26 @@ func UploadAnyS3(w http.ResponseWriter, req *http.Request, minioClient *minio.Cl
 		fmt.Println(err)
 		return
 	}
+	contentType := header.Header["Content-Type"][0]
+	contentDisposition := header.Header["Content-Disposition"][0]                                      // returns form-data
+	contentDisposition = "inline;" + contentDisposition[strings.IndexByte(contentDisposition, ';')+1:] //replace form-data with inline
+	fmt.Println("Content-Type ", contentType)
+	fmt.Println("Content-Disposition ", contentDisposition)
 	defer file.Close()
 	bucketName := "doggy-date-app"
-	path := "dogs/"
+	path := "dogs/" //path to folder inside bucket
 	success, err := minioClient.PutObjectWithContext(ctx, bucketName, path+header.Filename, file, header.Size, minio.PutObjectOptions{
-		ContentType: "application/octet-stream",
+		ContentType:        contentType,
+		ContentDisposition: contentDisposition,
+		// ContentType:        "application/octet-stream",
+		// ContentDisposition: "inline",
 	})
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	fmt.Println("Successfully uploaded bytes: ", success)
+	w.Write([]byte(fmt.Sprintf("https://d2m79q3ctf5ck3.cloudfront.net/%s", header.Filename)))
 }
 
 // UploadImage DEPRECATED uses old way to send image up to 10MB
