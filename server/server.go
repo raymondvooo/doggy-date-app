@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/joho/godotenv"
 	"io/ioutil"
@@ -9,15 +8,12 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/graph-gophers/graphql-go/relay"
+	"github.com/minio/minio-go"
 	"github.com/raymondvooo/doggy-date-app/server/api"
 	"github.com/raymondvooo/doggy-date-app/server/gql"
 	"github.com/raymondvooo/doggy-date-app/server/postgres"
@@ -37,31 +33,32 @@ func main() {
 		log.Println("Error loading .env file")
 	}
 
-	creds := credentials.NewStaticCredentials(os.Getenv("AWSAccessKeyId"), os.Getenv("AWSSecretKey"), "")
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region:      aws.String("us-west-1"),
-		Credentials: creds}))
+	// creds := credentials.NewStaticCredentials(os.Getenv("AWSAccessKeyId"), os.Getenv("AWSSecretKey"), "")
+	// sess := session.Must(session.NewSession(&aws.Config{
+	// 	Region:      aws.String("us-west-1"),
+	// 	Credentials: creds}))
+	// cfg := aws.NewConfig().WithRegion("us-west-1").WithCredentials(creds).WithLogLevel(aws.LogDebug)
+	// s3b := s3.New(sess, cfg)
 
-	cfg := aws.NewConfig().WithRegion("us-west-1").WithCredentials(creds).WithLogLevel(aws.LogDebug)
-	s3b := s3.New(sess, cfg)
-
-	pgDb := os.Getenv("DATABASE_URL")
-	if len(pgDb) == 0 {
-		log.Fatal("Invalid database url")
-		return
+	// creates a new AWS S3 client instance
+	minioClient, err := minio.NewWithRegion("s3.amazonaws.com", os.Getenv("AWSAccessKeyId"), os.Getenv("AWSSecretKey"), true, "us-west-1")
+	if err != nil {
+		log.Fatalln(err)
 	}
 
 	//Create a new connection to our pg database
-	db, err := postgres.NewConnection(pgDb)
+	db, err := postgres.NewConnection(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	//Load graphql Schema
 	gqlSchema, err := getSchema("./gql/schema.graphql")
 	if err != nil {
 		panic(err)
 	}
 
+	//Parses graphql schema string into Schema object
 	schema := graphql.MustParseSchema(gqlSchema, &gql.Resolver{Db: db})
 
 	router := chi.NewRouter()
@@ -88,12 +85,8 @@ func main() {
 	)
 
 	router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write(page)
+		w.Write(graphQLPlayground)
 	}))
-
-	router.Route("/test", func(router chi.Router) {
-		router.Get("/{name}", getName)
-	})
 
 	// Create the graphql route with a Server method to handle it
 	router.Route("/graphql", func(router chi.Router) {
@@ -108,21 +101,19 @@ func main() {
 	})
 
 	router.Route("/upload", func(router chi.Router) {
-		router.Post("/", func(w http.ResponseWriter, req *http.Request) {
-			api.UploadImage(w, req, db, s3b)
-		})
+		router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write(uploadTest)
+		}))
+		router.Handle("/send", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			// router.Post("/", func(w http.ResponseWriter, req *http.Request) {
+			// api.UploadImage(w, req, db, s3b)
+			api.UploadAnyS3(w, req, minioClient)
+		}))
 	})
 
 	defer db.Close()
 	http.ListenAndServe(":"+port, router)
 
-}
-
-func getName(w http.ResponseWriter, req *http.Request) {
-	//chi.UrlParam to read http url parameter
-	name := chi.URLParam(req, "name")
-	//string print
-	w.Write([]byte(fmt.Sprintf("My name is %s", name)))
 }
 
 func getSchema(path string) (string, error) {
@@ -134,7 +125,7 @@ func getSchema(path string) (string, error) {
 	return string(b), nil
 }
 
-var page = []byte(`
+var graphQLPlayground = []byte(`
 <!DOCTYPE html>
 <html>
 
@@ -187,4 +178,19 @@ var page = []byte(`
 </body>
 
 </html>
+`)
+
+var uploadTest = []byte(`	
+	<html>
+<head>
+       <title>Upload file</title>
+</head>
+<body>
+<form enctype="multipart/form-data" action="http://localhost:8080/upload/send" method="post">
+    <input type="file" name="uploadfile" />
+    <input type="hidden" name="token" value="{{.}}"/>
+    <input type="submit" value="upload" />
+</form>
+</body>
+</html>	
 `)

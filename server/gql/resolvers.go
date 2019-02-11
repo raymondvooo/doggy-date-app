@@ -64,7 +64,7 @@ func (r *Resolver) CreateUser(args *struct {
 }) (*UserResolver, error) {
 	var err error
 	if emailExists, err := r.Db.CheckEmailExists(args.Email); emailExists && err == nil { // check existing email
-		return &UserResolver{&types.User{}, r.Db}, fmt.Errorf("Email %s is already taken exists in database", args.Email)
+		return &UserResolver{&types.User{}, r.Db}, fmt.Errorf("Email %s is already taken", args.Email)
 	}
 	if uidExists, err := r.Db.CheckIDExists("users", args.ID); uidExists && err == nil { // check existing userID
 		return &UserResolver{&types.User{}, r.Db}, fmt.Errorf("user ID: %s already exists in database", args.ID)
