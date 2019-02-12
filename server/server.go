@@ -102,11 +102,11 @@ func main() {
 
 	router.Route("/user", func(router chi.Router) {
 		router.Route("/{uid}", func(router chi.Router) {
-			pb := &api.ProfileBuilder{}
+			pb := api.ProfileBuilder{}
 			router.Route("/upload", func(router chi.Router) {
 				router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 					uid := chi.URLParam(req, "uid")
-					pb = &api.ProfileBuilder{ID: graphql.ID(uid)}
+					pb = api.ProfileBuilder{ID: graphql.ID(uid)}
 					w.Write(uploadTest)
 				}))
 				router.Handle("/send", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -118,11 +118,11 @@ func main() {
 
 	router.Route("/dog", func(router chi.Router) {
 		router.Route("/{dogId}", func(router chi.Router) {
-			pb := &api.ProfileBuilder{}
+			pb := api.ProfileBuilder{}
 			router.Route("/upload", func(router chi.Router) {
 				router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 					uid := chi.URLParam(req, "uid")
-					pb = &api.ProfileBuilder{ID: graphql.ID(uid)}
+					pb = api.ProfileBuilder{ID: graphql.ID(uid)}
 					w.Write(uploadTest)
 				}))
 				router.Handle("/send", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
