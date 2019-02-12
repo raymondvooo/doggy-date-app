@@ -121,8 +121,8 @@ func main() {
 			pb := api.ProfileBuilder{}
 			router.Route("/upload", func(router chi.Router) {
 				router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-					uid := chi.URLParam(req, "uid")
-					pb = api.ProfileBuilder{ID: graphql.ID(uid)}
+					did := chi.URLParam(req, "dogId")
+					pb = api.ProfileBuilder{ID: graphql.ID(did)}
 					w.Write(uploadTest)
 				}))
 				router.Handle("/send", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {

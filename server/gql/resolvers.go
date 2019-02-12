@@ -154,6 +154,11 @@ func (r *DogResolver) Owner() *UserResolver {
 	return nil
 }
 
+// ProfileImageURL function required by graphql to return user's email
+func (r *DogResolver) ProfileImageURL() *string {
+	return &r.d.ProfileImageURL
+}
+
 // PlanDate graphql mutation
 func (r *Resolver) PlanDate(args *struct {
 	ID          graphql.ID

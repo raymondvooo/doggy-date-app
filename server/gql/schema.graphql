@@ -24,6 +24,7 @@ type Dog {
   age: Int
   breed: String
   owner: User!
+  profileImageURL: String
 }
 
 type DoggyDate {
