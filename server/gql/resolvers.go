@@ -52,6 +52,16 @@ func (r *Resolver) Dog(args struct{ ID graphql.ID }) (*DogResolver, error) {
 	return data, nil
 }
 
+// LoginUser graphql query
+func (r *Resolver) LoginUser(args struct{ Email string }) (*UserResolver, error) {
+	user, err := r.Db.GetUserByEmail(args.Email)
+	if err != nil {
+		return &UserResolver{nil, r.Db}, err
+	}
+	data := &UserResolver{&user, r.Db}
+	return data, nil
+}
+
 // CreateUser graphql mutation
 func (r *Resolver) CreateUser(args *struct {
 	ID       graphql.ID
@@ -109,6 +119,11 @@ func (r *UserResolver) Dogs() *[]*DogResolver {
 		return &dr
 	}
 	return &[]*DogResolver{{&types.Dog{}, r.Db, &types.User{}}}
+}
+
+// ProfileImageURL function required by graphql to return user's email
+func (r *UserResolver) ProfileImageURL() *string {
+	return &r.u.ProfileImageURL
 }
 
 // ID function required by graphql to return dogs's ID

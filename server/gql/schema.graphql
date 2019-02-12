@@ -6,6 +6,7 @@ schema {
 type Query {
   user(id: ID!): User
   dog(id: ID!): Dog
+  loginUser(email: String!): User
   # getDates: DoggyDate
 }
 
@@ -14,6 +15,7 @@ type User {
   name: String
   email: String
   dogs: [Dog] #cannot use !
+  profileImageURL: String
 }
 
 type Dog {

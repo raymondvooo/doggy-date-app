@@ -33,6 +33,33 @@ func NewConnection(connect string) (*Db, error) {
 	return &Db{db}, nil
 }
 
+// GetUserByEmail is called within our user query for graphql
+func (d *Db) GetUserByEmail(email string) (types.User, error) {
+	// Prepare query, takes a id argument, protects from sql injection
+	stmt, err := d.Prepare("SELECT * FROM users WHERE email=$1")
+	if err != nil {
+		fmt.Println("GetUsersById Preparation Err: ", err)
+	}
+	defer stmt.Close()
+	var u types.User
+	var qDog []string
+	// Make database query
+	err = stmt.QueryRow(email).Scan(
+		&u.ID,
+		&u.Name,
+		&u.Email,
+		pq.Array(&qDog),
+		&u.ProfileImageURL,
+	)
+	StringToGraphqlID(qDog, &u.Dogs)
+
+	if err == sql.ErrNoRows {
+		fmt.Println("GetUsersById Query Err: ", err)
+		return u, err
+	}
+	return u, nil
+}
+
 // GetUsersById is called within our user query for graphql
 func (d *Db) GetUsersById(id graphql.ID) (types.User, error) {
 	// Prepare query, takes a id argument, protects from sql injection
@@ -48,8 +75,9 @@ func (d *Db) GetUsersById(id graphql.ID) (types.User, error) {
 	err = stmt.QueryRow(uid).Scan(
 		&u.ID,
 		&u.Name,
-		&u.Email,
+		nil,
 		pq.Array(&qDog),
+		&u.ProfileImageURL,
 	)
 	StringToGraphqlID(qDog, &u.Dogs)
 
@@ -228,6 +256,24 @@ func (d *Db) CheckEmailExists(email string) (bool, error) {
 		fmt.Println("CheckEmailExists Query Err: ", err)
 		return false, err
 	}
+	return true, nil
+}
+
+// UpdateProfilePic queries database if email exists
+func (d *Db) UpdateProfilePic(tableType string, id graphql.ID, imgURL string) (bool, error) {
+	// Prepare query, takes arguments, protects from sql injection
+	// stmt, err := d.Prepare("INSERT INTO dogs VALUES ($1, $2, $3, $4, $5)")
+	// if err != nil {
+	// 	fmt.Println("InsertDog Preparation Err: ", err)
+	// }
+	// defer stmt.Close()
+	// did, _ := uuid.FromString(string(id))
+	// uid, _ := uuid.FromString(string(ownerId))
+	// if _, err := stmt.Exec(did, name, int64(age), breed, uid); err != nil {
+	// 	fmt.Println("InsertDog Execution Err: ", err)
+	// 	return "", err
+	// }
+	// return id, nil
 	return true, nil
 }
 

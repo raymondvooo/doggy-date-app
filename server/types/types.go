@@ -9,6 +9,7 @@ type User struct {
 	Name  string
 	Email string
 	Dogs  []graphql.ID
+	ProfileImageURL string
 }
 
 type Dog struct {
