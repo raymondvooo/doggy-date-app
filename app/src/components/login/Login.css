@@ -1,7 +1,7 @@
 .login-wrapper {
     display: flex;
-    background: url(https://is3-ssl.mzstatic.com/image/thumb/Purple128/v4/2b/24/8e/2b248e8f-f488-ace1-b33f-22b407807d61/Free-1x_U007emarketing-0-0-GLES2_U002c0-512MB-sRGB-0-0-0-85-220-0-0-0-7.png/246x0w.jpg);
-    background-size: inherit;
+    background: url('./kora.JPG');
+    background-size: 15%;
     background-position: 21rem 0;
     background-repeat: repeat;
     display: flex;

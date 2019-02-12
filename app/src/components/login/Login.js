@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import RegForm from './RegForm';
+import LoginForm from './LoginForm';
 import '../../App.css';
 import './Login.css';
 
@@ -17,14 +18,15 @@ class Login extends Component {
       </section>
 
       <div className="login-group">
-         <input className="username" type="text" name="input" placeholder="Username"></input>
+         {/* <input className="username" type="text" name="input" placeholder="Username"></input>
          <input className="password" type="password" name="input" placeholder="Password"></input>
 
 
          <button type="submit" className="btn btn-primary">Login</button>
 
 
-         <button className="btn btn-link">Need an Account?</button>
+         <button className="btn btn-link">Need an Account?</button> */}
+         <LoginForm />
          <RegForm />
     </div>
       
