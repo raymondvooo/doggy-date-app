@@ -105,6 +105,7 @@ func (d *Db) GetDogById(id graphql.ID) (types.Dog, types.User, error) {
 		&dog.Age,
 		&dog.Breed,
 		&dog.Owner,
+		&dog.ProfileImageURL,
 	)
 	if err == sql.ErrNoRows {
 		fmt.Println("GetDogById Query Err: ", err)
@@ -147,6 +148,7 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
 			&r.Age,
 			&r.Breed,
 			&r.Owner,
+			&r.ProfileImageURL,
 		)
 		if err != nil {
 			fmt.Println("Error scanning rows: ", err)
@@ -262,18 +264,18 @@ func (d *Db) CheckEmailExists(email string) (bool, error) {
 // UpdateProfilePic queries database if email exists
 func (d *Db) UpdateProfilePic(tableType string, id graphql.ID, imgURL string) (bool, error) {
 	// Prepare query, takes arguments, protects from sql injection
-	// stmt, err := d.Prepare("INSERT INTO dogs VALUES ($1, $2, $3, $4, $5)")
-	// if err != nil {
-	// 	fmt.Println("InsertDog Preparation Err: ", err)
-	// }
-	// defer stmt.Close()
-	// did, _ := uuid.FromString(string(id))
-	// uid, _ := uuid.FromString(string(ownerId))
-	// if _, err := stmt.Exec(did, name, int64(age), breed, uid); err != nil {
-	// 	fmt.Println("InsertDog Execution Err: ", err)
-	// 	return "", err
-	// }
-	// return id, nil
+	q := fmt.Sprintf("UPDATE %s SET profile_image=$1 WHERE id=$2", tableType)
+	fmt.Println(q)
+	stmt, err := d.Prepare(q)
+	if err != nil {
+		fmt.Println("UpdateProfilePic Preparation Err: ", err)
+	}
+	defer stmt.Close()
+	uid, _ := uuid.FromString(string(id))
+	if _, err := stmt.Exec(imgURL, uid); err != nil {
+		fmt.Println("UpdateProfilePic Execution Err: ", err)
+		return false, err
+	}
 	return true, nil
 }
 
