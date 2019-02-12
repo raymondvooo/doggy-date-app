@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/graph-gophers/graphql-go"
 	"github.com/minio/minio-go"
 	"github.com/raymondvooo/doggy-date-app/server/postgres"
 	"net/http"
@@ -13,6 +14,11 @@ import (
 
 type Email struct {
 	Email string `json:"email"`
+}
+
+type ProfileBuilder struct {
+	ID       graphql.ID
+	ImageURL string
 }
 
 //CheckEmailExists checks against the database to see if email exists in the system
@@ -41,7 +47,7 @@ func CheckEmailExists(w http.ResponseWriter, req *http.Request, db *postgres.Db)
 }
 
 // UploadAnyS3 upload any file to S3
-func UploadAnyS3(w http.ResponseWriter, req *http.Request, minioClient *minio.Client) {
+func (pb *ProfileBuilder) UploadAnyS3(w http.ResponseWriter, req *http.Request, minioClient *minio.Client, db *postgres.Db, tableType string, id graphql.ID) {
 	// Create context for cancel deadline signal
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -70,8 +76,17 @@ func UploadAnyS3(w http.ResponseWriter, req *http.Request, minioClient *minio.Cl
 		fmt.Println(err)
 		return
 	}
+	imgURL := fmt.Sprintf("https://d2m79q3ctf5ck3.cloudfront.net/%s", header.Filename)
+	pb.UpdateProfilePic(db, tableType, id, imgURL)
 	fmt.Println("Successfully uploaded bytes: ", success)
-	w.Write([]byte(fmt.Sprintf("https://d2m79q3ctf5ck3.cloudfront.net/%s", header.Filename)))
+	w.Write([]byte(imgURL))
+}
+
+// UpdateProfilePic updates profile picture row in postgres
+func (pb *ProfileBuilder) UpdateProfilePic(db *postgres.Db, tableType string, id graphql.ID, imgURL string) {
+	if _, err := db.UpdateProfilePic(tableType, id, imgURL); err != nil {
+		fmt.Println("UpdateProfilePic Err ", err)
+	}
 }
 
 // UploadImage DEPRECATED uses old way to send image up to 10MB

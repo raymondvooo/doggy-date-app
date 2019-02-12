@@ -100,15 +100,36 @@ func main() {
 		})
 	})
 
-	router.Route("/upload", func(router chi.Router) {
-		router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write(uploadTest)
-		}))
-		router.Handle("/send", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			// router.Post("/", func(w http.ResponseWriter, req *http.Request) {
-			// api.UploadImage(w, req, db, s3b)
-			api.UploadAnyS3(w, req, minioClient)
-		}))
+	router.Route("/user", func(router chi.Router) {
+		router.Route("/{uid}", func(router chi.Router) {
+			pb := api.ProfileBuilder{}
+			router.Route("/upload", func(router chi.Router) {
+				router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					uid := chi.URLParam(req, "uid")
+					pb = api.ProfileBuilder{ID: graphql.ID(uid)}
+					w.Write(uploadTest)
+				}))
+				router.Handle("/send", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					pb.UploadAnyS3(w, req, minioClient, db, "users", pb.ID)
+				}))
+			})
+		})
+	})
+
+	router.Route("/dog", func(router chi.Router) {
+		router.Route("/{dogId}", func(router chi.Router) {
+			pb := api.ProfileBuilder{}
+			router.Route("/upload", func(router chi.Router) {
+				router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					did := chi.URLParam(req, "dogId")
+					pb = api.ProfileBuilder{ID: graphql.ID(did)}
+					w.Write(uploadTest)
+				}))
+				router.Handle("/send", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					pb.UploadAnyS3(w, req, minioClient, db, "dogs", pb.ID)
+				}))
+			})
+		})
 	})
 
 	defer db.Close()

@@ -33,6 +33,33 @@ func NewConnection(connect string) (*Db, error) {
 	return &Db{db}, nil
 }
 
+// GetUserByEmail is called within our user query for graphql
+func (d *Db) GetUserByEmail(email string) (types.User, error) {
+	// Prepare query, takes a id argument, protects from sql injection
+	stmt, err := d.Prepare("SELECT * FROM users WHERE email=$1")
+	if err != nil {
+		fmt.Println("GetUsersById Preparation Err: ", err)
+	}
+	defer stmt.Close()
+	var u types.User
+	var qDog []string
+	// Make database query
+	err = stmt.QueryRow(email).Scan(
+		&u.ID,
+		&u.Name,
+		&u.Email,
+		pq.Array(&qDog),
+		&u.ProfileImageURL,
+	)
+	StringToGraphqlID(qDog, &u.Dogs)
+
+	if err == sql.ErrNoRows {
+		fmt.Println("GetUsersById Query Err: ", err)
+		return u, err
+	}
+	return u, nil
+}
+
 // GetUsersById is called within our user query for graphql
 func (d *Db) GetUsersById(id graphql.ID) (types.User, error) {
 	// Prepare query, takes a id argument, protects from sql injection
@@ -48,8 +75,9 @@ func (d *Db) GetUsersById(id graphql.ID) (types.User, error) {
 	err = stmt.QueryRow(uid).Scan(
 		&u.ID,
 		&u.Name,
-		&u.Email,
+		nil,
 		pq.Array(&qDog),
+		&u.ProfileImageURL,
 	)
 	StringToGraphqlID(qDog, &u.Dogs)
 
@@ -77,6 +105,7 @@ func (d *Db) GetDogById(id graphql.ID) (types.Dog, types.User, error) {
 		&dog.Age,
 		&dog.Breed,
 		&dog.Owner,
+		&dog.ProfileImageURL,
 	)
 	if err == sql.ErrNoRows {
 		fmt.Println("GetDogById Query Err: ", err)
@@ -119,6 +148,7 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
 			&r.Age,
 			&r.Breed,
 			&r.Owner,
+			&r.ProfileImageURL,
 		)
 		if err != nil {
 			fmt.Println("Error scanning rows: ", err)
@@ -226,6 +256,24 @@ func (d *Db) CheckEmailExists(email string) (bool, error) {
 	err = stmt.QueryRow(email).Scan(&exists)
 	if err == sql.ErrNoRows {
 		fmt.Println("CheckEmailExists Query Err: ", err)
+		return false, err
+	}
+	return true, nil
+}
+
+// UpdateProfilePic queries database if email exists
+func (d *Db) UpdateProfilePic(tableType string, id graphql.ID, imgURL string) (bool, error) {
+	// Prepare query, takes arguments, protects from sql injection
+	q := fmt.Sprintf("UPDATE %s SET profile_image=$1 WHERE id=$2", tableType)
+	fmt.Println(q)
+	stmt, err := d.Prepare(q)
+	if err != nil {
+		fmt.Println("UpdateProfilePic Preparation Err: ", err)
+	}
+	defer stmt.Close()
+	uid, _ := uuid.FromString(string(id))
+	if _, err := stmt.Exec(imgURL, uid); err != nil {
+		fmt.Println("UpdateProfilePic Execution Err: ", err)
 		return false, err
 	}
 	return true, nil

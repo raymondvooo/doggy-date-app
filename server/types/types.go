@@ -5,18 +5,20 @@ import (
 )
 
 type User struct {
-	ID    graphql.ID
-	Name  string
-	Email string
-	Dogs  []graphql.ID
+	ID              graphql.ID
+	Name            string
+	Email           string
+	Dogs            []graphql.ID
+	ProfileImageURL string
 }
 
 type Dog struct {
-	ID    graphql.ID
-	Name  string
-	Age   int32
-	Breed string
-	Owner graphql.ID
+	ID              graphql.ID
+	Name            string
+	Age             int32
+	Breed           string
+	Owner           graphql.ID
+	ProfileImageURL string
 }
 
 type Date struct {
