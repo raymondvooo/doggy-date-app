@@ -4,30 +4,8 @@ import { v1 as uuid } from "uuid";
 import gql from "graphql-tag";
 import validator from "validator";
 import { Button, Form, Input } from "semantic-ui-react";
+import {CREATE_USER} from '../../schema';
 
-// CREATE_USER mutation query
-const CREATE_USER = `
-mutation CreateUser($id: ID!, $name: String!, $email: String!, $dogId: ID!, $dogName: String!, $dogAge: Int!, $dogBreed: String!) {
-  createUser(
-    id: $id,
-    name: $name,
-    email: $email,
-    dogId: $dogId,
-    dogName: $dogName,
-    dogAge: $dogAge,
-    dogBreed: $dogBreed
-  ) {
-    id
-    name
-    email
-    dogs {
-      id
-      name
-      age
-      breed
-    }
-  }
-}`;
 
 export default class RegForm extends Component {
   state = {
