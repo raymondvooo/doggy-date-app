@@ -35,3 +35,7 @@ p {
     display: flex;
     justify-content: center;
 }
+#reg {
+    border-color: transparent;
+    background-color: transparent;
+}

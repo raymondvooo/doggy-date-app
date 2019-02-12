@@ -1,45 +1,66 @@
-import React, { Component } from 'react';
-import RegForm from './RegForm';
-import LoginForm from './LoginForm';
-import '../../App.css';
-import './Login.css';
+import React, { Component } from "react";
+import RegForm from "./RegForm";
+import LoginForm from "./LoginForm";
+import "../../App.css";
+import "./Login.css";
 
 class Login extends Component {
+  state = {
+    showReg: false,
+    showLog: true
+  };
+
+  toggleReg = () => {
+    if (this.state.showReg === false) {
+      this.setState({
+        showReg: true,
+        showLog: false
+      });
+    } else
+      this.setState({
+        showReg: false,
+        showLog: true
+      });
+  };
+
+  toggleLog = () => {
+    if (this.state.showLog === false) {
+      this.setState({
+        showReg: false,
+        showLog: true
+      });
+    } else
+      this.setState({
+        showReg: true,
+        showLog: false
+      });
+  };
+
   render() {
     return (
       <div className="login-wrapper">
-      <form className="loginForm">
-      <section className="title">
-      <h3 className="welcome">Welcome to</h3> Doggy Date!
-      <h5 className="hint">Sign in below</h5>
-      <p>
-          <br />
+        <section className="title">
+          <h3 className="welcome">Welcome to</h3> Doggy Date!
+          <h5 className="hint">Sign in below</h5>
+          <p>
+            <br />
           </p>
-      </section>
+        </section>
 
-      <div className="login-group">
-         {/* <input className="username" type="text" name="input" placeholder="Username"></input>
-         <input className="password" type="password" name="input" placeholder="Password"></input>
-
-
-         <button type="submit" className="btn btn-primary">Login</button>
-
-
-         <button className="btn btn-link">Need an Account?</button> */}
-         <LoginForm />
-         <RegForm />
-    </div>
-      
-      </form>
-</div>
-
-
+        <div className="login-group">
+          {this.state.showReg ? (
+            <RegForm showLog={this.toggleLog} />
+          ) : (
+            <LoginForm showReg={this.toggleReg} />
+          )}
+          {/* {this.state.showLog ? <LoginForm showReg={this.toggleReg} /> : <RegForm showLog={this.toggleLog}/>} */}
+        </div>
+      </div>
     );
   }
 }
 
 export default Login;
-
 
 // <div class="login-wrapper">
 // <form class="login">
@@ -53,7 +74,7 @@ export default Login;
 //           <!-- if user is already signed in, create logout button -->
 //         <p> <button *ngIf="userService.uLogin === true && userService.id != null" class="btn btn-link" (click)= "onLogout()">Logout</button>
 //         <p>
-            
+
 //         <button *ngIf="userService.uLogin === true && userService.id != null" class="btn btn-link" (click)="userService.uRegister = true; userService.uLogin = false" >Need an Account?</button>
 //         </p>
 //     </section>
@@ -67,20 +88,18 @@ export default Login;
 //         </div>
 //         <button type="submit" class="btn btn-primary" (click)="onLogin()">Login</button>
 
-
 //         <button class="btn btn-link" (click)="userService.uRegister = true; userService.uLogin = false" >Need an Account?</button>
 //     </div>
-    
+
 //     <!-- if user wants to register, display this -->
 //     <h5 class="hint" *ngIf="userService.uRegister === true">Register below</h5>
 //     <div class="login-group" *ngIf="userService.uRegister === true">
-      
+
 //         <input class="first name" type="text" name="input" placeholder="First Name" [(ngModel)]="user.firstName">
 //         <input class="last name" type="text" name="input" placeholder="Last Name" [(ngModel)]="user.lastName">
 //         <input class="email" type="text" name="input" placeholder="Email" [(ngModel)]="user.email">
 //         <input class="password" type="password" name="input" placeholder="Password" [(ngModel)]="user.password">
 
-       
 //         <button type="submit" class="btn btn-primary" (click)="onRegister()">Register</button>
 
 //         <button class="btn btn-link" (click)="userService.uRegister = false; userService.uLogin = true" >Go Back</button>

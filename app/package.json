@@ -17,7 +17,7 @@
     "react-form-validator-core": "^0.5.1",
     "react-router": "^4.3.1",
     "react-router-dom": "^4.3.1",
-    "react-scripts": "2.1.1",
+    "react-scripts": "^2.1.5",
     "semantic-ui-react": "^0.85.0",
     "uuid": "^3.3.2",
     "validator": "^10.11.0"

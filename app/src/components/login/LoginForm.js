@@ -1,8 +1,29 @@
 import React, { Component } from "react";
 import axios from "axios";
+import { Button, Form, Input } from "semantic-ui-react";
 
-const url = 'https://doggy-date-go.herokuapp.com/';
-
+const LOGIN_USER = `
+mutation CreateUser($id: ID!, $name: String!, $email: String!, $dogId: ID!, $dogName: String!, $dogAge: Int!, $dogBreed: String!) {
+  createUser(
+    id: $id,
+    name: $name,
+    email: $email,
+    dogId: $dogId,
+    dogName: $dogName,
+    dogAge: $dogAge,
+    dogBreed: $dogBreed
+  ) {
+    id
+    name
+    email
+    dogs {
+      id
+      name
+      age
+      breed
+    }
+  }
+}`;
 
 export default class LoginForm extends Component {
   state = {
@@ -11,46 +32,48 @@ export default class LoginForm extends Component {
     id: null,
     name: "",
     dogId: null,
-    dogName:"",
-    dogAge: null,
-    dogBreed:""
+    dogName: "",
+    dogAge: "",
+    dogBreed: ""
   };
-  
 
-  
   handleSubmit = event => {
     event.preventDefault();
     axios
-      .post(url, JSON.stringify())
+      .post("https://doggy-date-go.herokuapp.com/graphql", JSON.stringify())
       .then(resp => {
         console.log(resp.data);
-        this.setState({ email: "", password: ""});
+        this.setState({ email: "", password: "" });
       });
-  };
+  }
+
+
   render() {
     return (
-        <div>
-      <form onSubmit={this.handleSubmit}>
-        <input
-          type="text"
-          value={this.state.email}
-          onChange={event => this.setState({ email: event.target.value })}
-          placeholder="Email"
-          required
-        />
-        {/* <input
+      <div>
+        <Form onSubmit={this.handleSubmit}>
+          <Input
+            type="text"
+            value={this.state.email}
+            onChange={event => this.setState({ email: event.target.value })}
+            placeholder="Email"
+            required
+          />
+          {/* <input
           type="password"
           value={this.state.password}
           onChange={event => this.setState({ password: event.target.value })}
           placeholder="Password"
           required
         /> */}
-        <button type="submit" className="btn btn-primary">Login</button>
-      </form>
-      <button className="btn btn-link">Need an Account?</button>
-        </div>
+          <Button type="submit" primary>
+            Login
+          </Button>
+        </Form>
+        <Button secondary id="reg" onClick={this.props.showReg}>
+          Need an Account?
+        </Button>
+      </div>
     );
   }
 }
-
-
