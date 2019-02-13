@@ -38,7 +38,7 @@ func (d *Db) GetUserByEmail(email string) (types.User, error) {
 	// Prepare query, takes a id argument, protects from sql injection
 	stmt, err := d.Prepare("SELECT * FROM users WHERE email=$1")
 	if err != nil {
-		fmt.Println("GetUsersById Preparation Err: ", err)
+		fmt.Println("GetUserByEmail Preparation Err: ", err)
 	}
 	defer stmt.Close()
 	var u types.User
@@ -54,7 +54,7 @@ func (d *Db) GetUserByEmail(email string) (types.User, error) {
 	StringToGraphqlID(qDog, &u.Dogs)
 
 	if err == sql.ErrNoRows {
-		fmt.Println("GetUsersById Query Err: ", err)
+		fmt.Println("GetUserByEmail Query Err: ", err)
 		return u, err
 	}
 	return u, nil
@@ -75,10 +75,11 @@ func (d *Db) GetUsersById(id graphql.ID) (types.User, error) {
 	err = stmt.QueryRow(uid).Scan(
 		&u.ID,
 		&u.Name,
-		nil,
+		&u.Email,
 		pq.Array(&qDog),
 		&u.ProfileImageURL,
 	)
+	u.Email = ""
 	StringToGraphqlID(qDog, &u.Dogs)
 
 	if err == sql.ErrNoRows {
@@ -133,9 +134,8 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
 	// Make query with our stmt, passing in id argument
 	rows, err := stmt.Query(pq.Array(dus))
 	if err != nil {
-		fmt.Println("GetDogByName Query Err: ", err)
+		fmt.Println("GetDogsByArray Query Err: ", err)
 	}
-
 	// Create User struct for holding each row's data
 	var r types.Dog
 	// Create slice of Users for our response
@@ -157,6 +157,46 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
 		dogs = append(dogs, r)
 	}
 	return dogs, nil
+}
+
+// GetAllDoggyDates is called within our doggydate query for graphql
+func (d *Db) GetAllDoggyDates() ([]types.Date, error) {
+	// Prepare query, takes a id argument, protects from sql injection
+	stmt, err := d.Prepare("SELECT * FROM doggy_dates")
+	if err != nil {
+		fmt.Println("GetAllDoggyDates Preparation Err: ", err)
+	}
+	defer stmt.Close()
+
+	// Make query with our stmt, passing in id argument
+	rows, err := stmt.Query()
+	if err != nil {
+		fmt.Println("GetAllDoggyDates Query Err: ", err)
+	}
+
+	// Create User struct for holding each row's data
+	var date types.Date
+	// Create slice of Users for our response
+	dates := []types.Date{}
+	// Copy the columns from row into the values pointed at by r (User)
+	for rows.Next() {
+		var dateDogs []string
+		err = rows.Scan(
+			&date.ID,
+			&date.Date,
+			&date.Description,
+			pq.Array(&dateDogs),
+			&date.Location,
+			&date.User,
+		)
+		if err != nil {
+			fmt.Println("Error scanning rows: ", err)
+			return []types.Date{}, err
+		}
+		StringToGraphqlID(dateDogs, &date.Dogs)
+		dates = append(dates, date)
+	}
+	return dates, nil
 }
 
 // InsertUser queries database to insert user row
@@ -286,11 +326,20 @@ func StringToGraphqlID(s []string, gqlS *[]graphql.ID) {
 	}
 }
 
-// GraphqlIDToUUID convert graphqlID array to string array
+// GraphqlIDToUUID convert graphqlID array to UUID array
 func GraphqlIDToUUID(gqlS []graphql.ID, u []uuid.UUID) []uuid.UUID {
 	for _, id := range gqlS {
 		x, _ := uuid.FromString(string(id))
 		u = append(u, x)
 	}
 	return u
+}
+
+// UUIDToGraphqlID convert UUID array to graphqlID array
+func UUIDToGraphqlID(uid []uuid.UUID, gid []graphql.ID) []graphql.ID {
+	for _, id := range uid {
+		x := graphql.ID(id.String())
+		gid = append(gid, x)
+	}
+	return gid
 }

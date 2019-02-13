@@ -30,6 +30,7 @@ type DoggyDateResolver struct {
 	date *types.Date
 	Db   *postgres.Db
 	u    *types.User
+	d    *[]types.Dog
 }
 
 // User graphql query
@@ -159,6 +160,22 @@ func (r *DogResolver) ProfileImageURL() *string {
 	return &r.d.ProfileImageURL
 }
 
+// GetDoggyDates function required by graphql query
+func (r *Resolver) GetDoggyDates() (*[]*DoggyDateResolver, error) {
+	if ddates, err := r.Db.GetAllDoggyDates(); err == nil {
+		var ddr []*DoggyDateResolver
+		for _, date := range ddates {
+			dogs, _ := r.Db.GetDogsByArray(date.Dogs)
+			user, _ := r.Db.GetUsersById(date.User)
+			n := new(types.Date)
+			*n = date
+			ddr = append(ddr, &DoggyDateResolver{date: n, Db: r.Db, u: &user, d: &dogs})
+		}
+		return &ddr, err
+	}
+	return &[]*DoggyDateResolver{{&types.Date{}, r.Db, &types.User{}, &[]types.Dog{}}}, nil
+}
+
 // PlanDate graphql mutation
 func (r *Resolver) PlanDate(args *struct {
 	ID          graphql.ID
@@ -170,15 +187,16 @@ func (r *Resolver) PlanDate(args *struct {
 }) (*DoggyDateResolver, error) {
 	if did, err := r.Db.CheckIDExists("doggy_dates", args.ID); !did && err != nil { // false, err
 		if date, err := r.Db.InsertDoggyDate(args.ID, args.Date, args.Description, args.Dogs, args.Location, args.User); err == nil {
+			dogs, _ := r.Db.GetDogsByArray(args.Dogs)
 			user, err := r.Db.GetUsersById(args.User)
 			if err != nil {
-				return &DoggyDateResolver{&date, r.Db, &types.User{}}, err
+				return &DoggyDateResolver{&date, r.Db, &types.User{}, &[]types.Dog{}}, err
 			}
-			return &DoggyDateResolver{&date, r.Db, &user}, err
+			return &DoggyDateResolver{&date, r.Db, &user, &dogs}, err
 		}
-		return &DoggyDateResolver{&types.Date{}, r.Db, &types.User{}}, err
+		return &DoggyDateResolver{&types.Date{}, r.Db, &types.User{}, &[]types.Dog{}}, err
 	}
-	return &DoggyDateResolver{&types.Date{}, r.Db, &types.User{}}, fmt.Errorf("Doggy Date ID: %s already exists in database", args.ID)
+	return &DoggyDateResolver{&types.Date{}, r.Db, &types.User{}, &[]types.Dog{}}, fmt.Errorf("Doggy Date ID: %s already exists in database", args.ID)
 }
 
 // ID function required by graphql to return DoggyDates's ID
