@@ -114,8 +114,8 @@ func (r *UserResolver) Email() *string {
 func (r *UserResolver) Dogs() *[]*DogResolver {
 	if dogs, err := r.Db.GetDogsByArray(r.u.Dogs); err == nil {
 		var dr []*DogResolver
-		for _, d := range dogs {
-			dr = append(dr, &DogResolver{d: &d, Db: r.Db, o: r.u})
+		for i := 0; i < len(dogs); i++ {
+			dr = append(dr, &DogResolver{d: &dogs[i], Db: r.Db, o: r.u})
 		}
 		return &dr
 	}
@@ -162,14 +162,12 @@ func (r *DogResolver) ProfileImageURL() *string {
 
 // GetDoggyDates function required by graphql query
 func (r *Resolver) GetDoggyDates() (*[]*DoggyDateResolver, error) {
-	if ddates, err := r.Db.GetAllDoggyDates(); err == nil {
+	if dates, err := r.Db.GetAllDoggyDates(); err == nil {
 		var ddr []*DoggyDateResolver
-		for _, date := range ddates {
-			dogs, _ := r.Db.GetDogsByArray(date.Dogs)
-			user, _ := r.Db.GetUsersById(date.User)
-			n := new(types.Date)
-			*n = date
-			ddr = append(ddr, &DoggyDateResolver{date: n, Db: r.Db, u: &user, d: &dogs})
+		for i := 0; i < len(dates); i++ { //range vs forloop fixed date reference
+			dogs, _ := r.Db.GetDogsByArray(dates[i].Dogs)
+			user, _ := r.Db.GetUsersById(dates[i].User)
+			ddr = append(ddr, &DoggyDateResolver{date: &dates[i], Db: r.Db, u: &user, d: &dogs})
 		}
 		return &ddr, err
 	}
@@ -218,8 +216,8 @@ func (r *DoggyDateResolver) Description() *string {
 func (r *DoggyDateResolver) Dogs() *[]*DogResolver {
 	if dogs, err := r.Db.GetDogsByArray(r.date.Dogs); err == nil {
 		var dr []*DogResolver
-		for _, d := range dogs {
-			dr = append(dr, &DogResolver{d: &d, Db: r.Db, o: r.u})
+		for i := 0; i < len(dogs); i++ {
+			dr = append(dr, &DogResolver{d: &dogs[i], Db: r.Db, o: r.u})
 		}
 		return &dr
 	}
