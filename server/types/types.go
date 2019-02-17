@@ -10,6 +10,7 @@ type User struct {
 	Email           string
 	Dogs            []graphql.ID
 	ProfileImageURL string
+	JoinDate        graphql.Time
 }
 
 type Dog struct {
@@ -23,7 +24,7 @@ type Dog struct {
 
 type Date struct {
 	ID          graphql.ID
-	Date        string
+	Date        graphql.Time
 	Description string
 	Dogs        []graphql.ID
 	Location    string

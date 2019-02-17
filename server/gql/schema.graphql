@@ -16,6 +16,7 @@ type User {
   email: String
   dogs: [Dog] #cannot use !
   profileImageURL: String
+  joinDate: Time
 }
 
 type Dog {
@@ -29,7 +30,7 @@ type Dog {
 
 type DoggyDate {
   id: ID!
-  date: String
+  date: Time
   description: String
   dogs: [Dog] #cannot use !
   location: String
@@ -49,10 +50,12 @@ type Mutation {
   ): User
 
   planDate(
-    date: String! # must use !
+    date: Time! # must use !
     description: String! # must use !
     dogs: [ID!]! # must use !
     location: String! # must use !
     user: ID! # must use !
   ): DoggyDate
 }
+
+scalar Time

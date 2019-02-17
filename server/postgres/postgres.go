@@ -7,6 +7,7 @@ import (
 	"github.com/raymondvooo/doggy-date-app/server/types"
 	uuid "github.com/satori/go.uuid"
 	"log"
+	"time"
 
 	// postgres driver
 	"github.com/lib/pq"
@@ -42,6 +43,7 @@ func (d *Db) GetUserByEmail(email string) (types.User, []types.Dog, error) {
 	u.name,
 	u.email,
 	u.profile_image,
+	u.join_date,
 	d.id,
 	d.name,
 	d.age,
@@ -65,11 +67,13 @@ func (d *Db) GetUserByEmail(email string) (types.User, []types.Dog, error) {
 		return u, dogs, err
 	}
 	for rows.Next() {
+		var joinDate time.Time
 		err = rows.Scan(
 			&u.ID,
 			&u.Name,
 			&u.Email,
 			&u.ProfileImageURL,
+			&joinDate, // readable Time type
 			&dog.ID,
 			&dog.Name,
 			&dog.Age,
@@ -80,20 +84,22 @@ func (d *Db) GetUserByEmail(email string) (types.User, []types.Dog, error) {
 			log.Println(" GetUserByEmail error scanning rows: ", err)
 			return u, dogs, err
 		}
+		u.JoinDate = graphql.Time{Time: joinDate} // convert Time to graphql.Time
 		dogs = append(dogs, dog)
 	}
 	log.Println("Success: GetUserByEmail Query")
 	return u, dogs, nil
 }
 
-// GetUsersByID is called within our user query for graphql
-func (d *Db) GetUsersByID(id uuid.UUID) (types.User, []types.Dog, error) {
-	log.Println("Starting: GetUsersByID Query")
+// GetUserByID is called within our user query for graphql
+func (d *Db) GetUserByID(id uuid.UUID) (types.User, []types.Dog, error) {
+	log.Println("Starting: GetUserByID Query")
 	// Prepare query, takes a id argument, protects from sql injection
 	stmt, err := d.Prepare(`SELECT
 	u.id,
 	u.name,
 	u.profile_image,
+	u.join_date,
 	d.id,
 	d.name,
 	d.age,
@@ -103,7 +109,7 @@ func (d *Db) GetUsersByID(id uuid.UUID) (types.User, []types.Dog, error) {
 	WHERE u.id = $1
 	ORDER BY u.name;`)
 	if err != nil {
-		log.Println("GetUsersByID Preparation Error: ", err)
+		log.Println("GetUserByID Preparation Error: ", err)
 	}
 	defer stmt.Close()
 	var u types.User
@@ -112,14 +118,16 @@ func (d *Db) GetUsersByID(id uuid.UUID) (types.User, []types.Dog, error) {
 	// Make database query
 	rows, err := stmt.Query(id)
 	if err != nil {
-		log.Println("GetUsersByID Query Error: ", err)
+		log.Println("GetUserByID Query Error: ", err)
 		return u, dogs, err
 	}
 	for rows.Next() {
+		var joinDate time.Time
 		err = rows.Scan(
 			&u.ID,
 			&u.Name,
 			&u.ProfileImageURL,
+			&joinDate, // readable Time type
 			&dog.ID,
 			&dog.Name,
 			&dog.Age,
@@ -127,12 +135,13 @@ func (d *Db) GetUsersByID(id uuid.UUID) (types.User, []types.Dog, error) {
 			&dog.ProfileImageURL,
 		)
 		if err != nil {
-			log.Println("GetUsersByID error scanning rows: ", err)
+			log.Println("GetUserByID error scanning rows: ", err)
 			return u, dogs, err
 		}
+		u.JoinDate = graphql.Time{Time: joinDate} // convert Time to graphql.Time
 		dogs = append(dogs, dog)
 	}
-	log.Println("Success: GetUsersByID Query")
+	log.Println("Success: GetUserByID Query")
 	return u, dogs, nil
 }
 
@@ -198,7 +207,8 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) (map[graphql.ID]types.Dog, map[
 		d.profile_image,
 		u.id,
 		u.name,
-		u.profile_image
+		u.profile_image,
+		u.join_date
 		FROM users u INNER JOIN dogs d ON u.id = d.owner
 		WHERE d.id= ANY($1);`)
 	if err != nil {
@@ -218,6 +228,7 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) (map[graphql.ID]types.Dog, map[
 	}
 	// Copy the columns from row into the values pointed at by r (User)
 	for rows.Next() {
+		var joinDate time.Time
 		err = rows.Scan(
 			&dog.ID,
 			&dog.Name,
@@ -227,11 +238,13 @@ func (d *Db) GetDogsByArray(dogIds []graphql.ID) (map[graphql.ID]types.Dog, map[
 			&u.ID,
 			&u.Name,
 			&u.ProfileImageURL,
+			&joinDate, // readable Time type
 		)
 		if err != nil {
 			log.Println("GetDogsByArray error scanning rows: ", err)
 			return dogMap, uMap, err
 		}
+		u.JoinDate = graphql.Time{Time: joinDate}
 		dogMap[dog.ID] = dog
 		uMap[u.ID] = u
 	}
@@ -249,6 +262,7 @@ func (d *Db) GetAllDoggyDates() (map[graphql.ID]types.Date, map[graphql.ID]types
 	u.name,
 	u.dogs,
 	u.profile_image,
+	u.join_date,
 	d.id,
 	d.name,
 	d.age,
@@ -276,19 +290,22 @@ func (d *Db) GetAllDoggyDates() (map[graphql.ID]types.Date, map[graphql.ID]types
 	dates := map[graphql.ID]types.Date{}
 	// Copy the columns from row into the values pointed at by r (User)
 	for rows.Next() {
+		var createDate time.Time
+		var userJoinDate time.Time
 		var dateDogs []string
 		var userDogs []string
 		err = rows.Scan(
 			&date.ID,
-			&date.Date,
+			&createDate, // readable Time type
 			&date.Description,
-			pq.Array(&dateDogs),
+			pq.Array(&dateDogs), // readable [] string type
 			&date.Location,
 			&date.User,
 			&u.ID,
 			&u.Name,
-			pq.Array(&userDogs),
+			pq.Array(&userDogs), // readable [] string type
 			&u.ProfileImageURL,
+			&userJoinDate, // readable Time type
 			&dog.ID,
 			&dog.Name,
 			&dog.Age,
@@ -299,8 +316,10 @@ func (d *Db) GetAllDoggyDates() (map[graphql.ID]types.Date, map[graphql.ID]types
 			log.Println("GetAllDoggyDates error scanning rows: ", err)
 			return dates, uMap, dogMap, err
 		}
-		date.Dogs = nil
-		u.Dogs = nil
+		date.Date = graphql.Time{Time: createDate}    // convert Time to graphql.Time
+		u.JoinDate = graphql.Time{Time: userJoinDate} // convert Time to graphql.Time
+		date.Dogs = nil                               // reset values before reassigning
+		u.Dogs = nil                                  // reset values before reassigning
 		StringToGraphqlID(dateDogs, &date.Dogs)
 		StringToGraphqlID(userDogs, &u.Dogs)
 		dates[date.ID] = date
@@ -316,27 +335,39 @@ func (d *Db) InsertUserDog(name string, email string, uImg string, dname string,
 	age int32, breed string, dImg string) (types.User, types.Dog, error) {
 	log.Println("Starting: InsertUserDog Execution")
 	// Prepare query, takes arguments, protects from sql injection
-	did, _ := uuid.NewV1()
-	var di = []uuid.UUID{did}
 	stmt, err := d.Prepare(`WITH createAccount AS (
-		INSERT INTO users VALUES ($1, $2, $3, $4, $5)
-	  ) INSERT INTO dogs VALUES ($6, $7, $8, $9, $10, $11);`)
+		INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6)
+	  ) INSERT INTO dogs VALUES ($7, $8, $9, $10, $11, $12);`)
 	if err != nil {
 		log.Println("InsertUserDog Preparation Error: ", err)
 	}
 	defer stmt.Close()
-	uid, _ := uuid.NewV1()
-	if _, err := stmt.Exec(uid, name, email, pq.Array(di), uImg, did, dname, age, breed, uid, dImg); err != nil {
+	did, _ := uuid.NewV1()
+	var di = []uuid.UUID{did}
+	uid, _ := uuid.NewV1() // Generate new uuid
+	joinDate := time.Now() // Generate timestamp
+	if _, err := stmt.Exec(uid, name, email, pq.Array(di), uImg, joinDate, did, dname, age, breed, uid, dImg); err != nil {
 		log.Println("InsertUserDog Execution Error: ", err)
 		return types.User{}, types.Dog{}, err
 	}
 	log.Println("Success: InsertUserDog Execution")
-	return types.User{ID: graphql.ID(uid.String()), Name: name, Email: email, Dogs: []graphql.ID{graphql.ID(did.String())}},
-		types.Dog{ID: graphql.ID(did.String()), Name: dname, Age: age, Breed: breed, Owner: graphql.ID(uid.String()), ProfileImageURL: dImg}, nil
+	return types.User{
+			ID:              graphql.ID(uid.String()),
+			Name:            name,
+			Email:           email,
+			Dogs:            []graphql.ID{graphql.ID(did.String())},
+			ProfileImageURL: uImg, JoinDate: graphql.Time{Time: joinDate}},
+		types.Dog{
+			ID:              graphql.ID(did.String()),
+			Name:            dname,
+			Age:             age,
+			Breed:           breed,
+			Owner:           graphql.ID(uid.String()),
+			ProfileImageURL: dImg}, nil
 }
 
 // InsertDoggyDate queries database to insert dog row
-func (d *Db) InsertDoggyDate(date string, description string, dogIds []graphql.ID, location string, user graphql.ID) (types.Date, error) {
+func (d *Db) InsertDoggyDate(date graphql.Time, description string, dogIds []graphql.ID, location string, user graphql.ID) (types.Date, error) {
 	log.Println("Starting: InsertDoggyDate Execution")
 	// Prepare query, takes arguments, protects from sql injection
 	stmt, err := d.Prepare("INSERT INTO doggy_dates VALUES ($1, $2, $3, $4, $5, $6)")
@@ -349,7 +380,8 @@ func (d *Db) InsertDoggyDate(date string, description string, dogIds []graphql.I
 	GraphqlIDToUUID(dogIds, &dus)
 	did, _ := uuid.NewV1()
 	uid, _ := uuid.FromString(string(user))
-	if _, err := stmt.Exec(did, date, description, pq.Array(dus), location, uid); err != nil {
+	gDate := date.Local() // convert graphql.Time to golang Time
+	if _, err := stmt.Exec(did, gDate, description, pq.Array(dus), location, uid); err != nil {
 		log.Println("InsertDoggyDate Execution Error: ", err)
 		return types.Date{}, err
 	}

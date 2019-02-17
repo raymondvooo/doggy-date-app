@@ -45,7 +45,7 @@ func (r *Resolver) User(args struct{ ID graphql.ID }) (*UserResolver, error) {
 		log.Println(err)
 		return &UserResolver{nil, nil, r.Db}, err
 	}
-	user, dogs, err := r.Db.GetUsersByID(uid)
+	user, dogs, err := r.Db.GetUserByID(uid)
 	if err != nil {
 		log.Println(err)
 		return &UserResolver{nil, nil, r.Db}, err
@@ -135,6 +135,11 @@ func (r *UserResolver) Dogs() *[]*DogResolver {
 	return &dogs
 }
 
+// JoinDate function required by graphql to return user's email
+func (r *UserResolver) JoinDate() *graphql.Time {
+	return &r.u.JoinDate
+}
+
 // ProfileImageURL function required by graphql to return user's email
 func (r *UserResolver) ProfileImageURL() *string {
 	return &r.u.ProfileImageURL
@@ -193,7 +198,7 @@ func (r *Resolver) GetDoggyDates() (*[]*DoggyDateResolver, error) {
 
 // PlanDate graphql mutation
 func (r *Resolver) PlanDate(args *struct {
-	Date        string
+	Date        graphql.Time
 	Description string
 	Dogs        []graphql.ID
 	Location    string
@@ -216,7 +221,7 @@ func (r *DoggyDateResolver) ID() graphql.ID {
 }
 
 // Date function required by graphql to return DoggyDates's ID
-func (r *DoggyDateResolver) Date() *string {
+func (r *DoggyDateResolver) Date() *graphql.Time {
 	return &r.date.Date
 }
 
