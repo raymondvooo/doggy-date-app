@@ -39,17 +39,16 @@ type DoggyDate {
 # The mutation type, represents all updates we can make to our data
 type Mutation {
   createUser(
-    id: ID!
     name: String!
     email: String!
-    dogId: ID!
+    userProfileImageURL: String!
     dogName: String!
     dogAge: Int!
     dogBreed: String!
+    dogProfileImageURL: String!
   ): User
 
   planDate(
-    id: ID! # must use !
     date: String! # must use !
     description: String! # must use !
     dogs: [ID!]! # must use !

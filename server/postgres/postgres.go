@@ -35,136 +35,219 @@ func NewConnection(connect string) (*Db, error) {
 }
 
 // GetUserByEmail is called within our user query for graphql
-func (d *Db) GetUserByEmail(email string) (types.User, error) {
+func (d *Db) GetUserByEmail(email string) (types.User, []types.Dog, error) {
 	// Prepare query, takes a id argument, protects from sql injection
-	stmt, err := d.Prepare("SELECT * FROM users WHERE email=$1")
+	stmt, err := d.Prepare(`SELECT
+	u.id,
+	u.name,
+	u.email,
+	u.profile_image,
+	d.id,
+	d.name,
+	d.age,
+	d.breed,
+	d.profile_image
+	FROM users u INNER JOIN dogs d ON u.id = d.owner
+	WHERE u.email = $1
+	ORDER BY u.name;`)
 	if err != nil {
 		log.Println("GetUserByEmail Preparation Err: ", err)
 	}
 	defer stmt.Close()
 	var u types.User
-	var qDog []string
+	var dog types.Dog
+	var dogs []types.Dog
 	// Make database query
-	err = stmt.QueryRow(email).Scan(
-		&u.ID,
-		&u.Name,
-		&u.Email,
-		pq.Array(&qDog),
-		&u.ProfileImageURL,
-	)
-	StringToGraphqlID(qDog, &u.Dogs)
-
-	if err == sql.ErrNoRows {
+	rows, err := stmt.Query(email)
+	if err != nil {
 		log.Println("GetUserByEmail Query Err: ", err)
-		return u, err
+		return u, dogs, err
 	}
-	return u, nil
+	for rows.Next() {
+		err = rows.Scan(
+			&u.ID,
+			&u.Name,
+			&u.Email,
+			&u.ProfileImageURL,
+			&dog.ID,
+			&dog.Name,
+			&dog.Age,
+			&dog.Breed,
+			&dog.ProfileImageURL,
+		)
+		if err != nil {
+			log.Println("Error scanning rows: ", err)
+			return u, dogs, err
+		}
+		dogs = append(dogs, dog)
+	}
+	return u, dogs, nil
 }
 
-// GetUsersById is called within our user query for graphql
-func (d *Db) GetUsersById(id graphql.ID) (types.User, error) {
+// GetUsersByID is called within our user query for graphql
+func (d *Db) GetUsersByID(id uuid.UUID) (types.User, []types.Dog, error) {
 	// Prepare query, takes a id argument, protects from sql injection
-	stmt, err := d.Prepare("SELECT * FROM users WHERE id=$1")
+	stmt, err := d.Prepare(`SELECT
+	u.id,
+	u.name,
+	u.profile_image,
+	d.id,
+	d.name,
+	d.age,
+	d.breed,
+	d.profile_image
+	FROM users u INNER JOIN dogs d ON u.id = d.owner
+	WHERE u.id = $1
+	ORDER BY u.name;`)
 	if err != nil {
 		log.Println("GetUsersById Preparation Err: ", err)
 	}
 	defer stmt.Close()
 	var u types.User
-	var qDog []string
+	var dog types.Dog
+	var dogs []types.Dog
 	// Make database query
-	uid, _ := uuid.FromString(string(id))
-	err = stmt.QueryRow(uid).Scan(
-		&u.ID,
-		&u.Name,
-		&u.Email,
-		pq.Array(&qDog),
-		&u.ProfileImageURL,
-	)
-	u.Email = ""
-	StringToGraphqlID(qDog, &u.Dogs)
-
-	if err == sql.ErrNoRows {
+	rows, err := stmt.Query(id)
+	if err != nil {
 		log.Println("GetUsersById Query Err: ", err)
-		return u, err
+		return u, dogs, err
 	}
-	return u, nil
+	for rows.Next() {
+		err = rows.Scan(
+			&u.ID,
+			&u.Name,
+			&u.ProfileImageURL,
+			&dog.ID,
+			&dog.Name,
+			&dog.Age,
+			&dog.Breed,
+			&dog.ProfileImageURL,
+		)
+		if err != nil {
+			log.Println("Error scanning rows: ", err)
+			return u, dogs, err
+		}
+		dogs = append(dogs, dog)
+	}
+	return u, dogs, nil
 }
 
-// GetDogById is called within our user query for graphql
-func (d *Db) GetDogById(id graphql.ID) (types.Dog, types.User, error) {
+// GetDogByID is called within our user query for graphql
+func (d *Db) GetDogByID(id uuid.UUID) ([]types.Dog, types.User, error) {
 	// Prepare query, takes a id argument, protects from sql injection
-	stmt, err := d.Prepare("SELECT * FROM dogs WHERE id=$1")
+	stmt, err := d.Prepare(`SELECT
+	d.id,
+	d.name,
+	d.age,
+	d.breed,
+	d.profile_image,
+	u.id,
+	u.name,
+	u.profile_image
+	FROM users u INNER JOIN dogs d ON u.id = d.owner
+	WHERE u.dogs::text LIKE '%' || $1 || '%'
+	ORDER BY d.id::text = $1 DESC;`)
 	if err != nil {
 		log.Println("GetDogById Preparation Err: ", err)
 	}
 	defer stmt.Close()
 	var dog types.Dog
+	var dogs []types.Dog
 	var u types.User
 	// Make query with our stmt, passing in id argument
-	err = stmt.QueryRow(id).Scan(
-		&dog.ID,
-		&dog.Name,
-		&dog.Age,
-		&dog.Breed,
-		&dog.Owner,
-		&dog.ProfileImageURL,
-	)
-	if err == sql.ErrNoRows {
+	rows, err := stmt.Query(id)
+	if err != nil {
 		log.Println("GetDogById Query Err: ", err)
-		return dog, u, err
+		return dogs, u, err
 	}
-	u, err = d.GetUsersById(dog.Owner)
-
-	if err == sql.ErrNoRows {
-		log.Println("GetUsersById Query Err: ", err)
-		return dog, u, err
+	for rows.Next() {
+		err = rows.Scan(
+			&dog.ID,
+			&dog.Name,
+			&dog.Age,
+			&dog.Breed,
+			&dog.ProfileImageURL,
+			&u.ID,
+			&u.Name,
+			&u.ProfileImageURL,
+		)
+		if err != nil {
+			log.Println("Error scanning rows: ", err)
+			return dogs, u, err
+		}
+		dogs = append(dogs, dog)
 	}
-	return dog, u, nil
+	return dogs, u, nil
 }
 
 // GetDogsByArray is called within our dogs query for graphql
-func (d *Db) GetDogsByArray(dogIds []graphql.ID) ([]types.Dog, error) {
+func (d *Db) GetDogsByArray(dogIds []graphql.ID) (map[graphql.ID]types.Dog, map[graphql.ID]types.User, error) {
 	// Prepare query, takes a id argument, protects from sql injection
-	stmt, err := d.Prepare("SELECT * FROM dogs WHERE id= ANY($1)")
+	stmt, err := d.Prepare(`SELECT
+		d.id,
+		d.name,
+		d.age,
+		d.breed,
+		d.profile_image,
+		u.id,
+		u.name,
+		u.profile_image
+		FROM users u INNER JOIN dogs d ON u.id = d.owner
+		WHERE d.id= ANY($1);`)
 	if err != nil {
 		log.Println("GetDogsByArray Preparation Err: ", err)
 	}
 	defer stmt.Close()
+	var dog types.Dog
 	var dus []uuid.UUID
-	dus = GraphqlIDToUUID(dogIds, dus)
+	dogMap := map[graphql.ID]types.Dog{}
+	var u types.User
+	uMap := map[graphql.ID]types.User{}
+	GraphqlIDToUUID(dogIds, &dus)
 	// Make query with our stmt, passing in id argument
 	rows, err := stmt.Query(pq.Array(dus))
 	if err != nil {
 		log.Println("GetDogsByArray Query Err: ", err)
 	}
-	// Create User struct for holding each row's data
-	var r types.Dog
-	// Create slice of Users for our response
-	// dMap := map[int]types.Dog{}
-	dogs := []types.Dog{}
 	// Copy the columns from row into the values pointed at by r (User)
 	for rows.Next() {
 		err = rows.Scan(
-			&r.ID,
-			&r.Name,
-			&r.Age,
-			&r.Breed,
-			&r.Owner,
-			&r.ProfileImageURL,
+			&dog.ID,
+			&dog.Name,
+			&dog.Age,
+			&dog.Breed,
+			&dog.ProfileImageURL,
+			&u.ID,
+			&u.Name,
+			&u.ProfileImageURL,
 		)
 		if err != nil {
 			log.Println("Error scanning rows: ", err)
-			return []types.Dog{}, err
+			return dogMap, uMap, err
 		}
-		dogs = append(dogs, r)
+		dogMap[dog.ID] = dog
+		uMap[u.ID] = u
 	}
-	return dogs, nil
+	return dogMap, uMap, nil
 }
 
 // GetAllDoggyDates is called within our doggydate query for graphql
-func (d *Db) GetAllDoggyDates() ([]types.Date, error) {
+func (d *Db) GetAllDoggyDates() (map[graphql.ID]types.Date, map[graphql.ID]types.User, map[graphql.ID]types.Dog, error) {
 	// Prepare query, takes a id argument, protects from sql injection
-	stmt, err := d.Prepare("SELECT * FROM doggy_dates")
+	stmt, err := d.Prepare(`SELECT
+	dd.*,
+	u.id,
+	u.name,
+	u.dogs,
+	u.profile_image,
+	d.id,
+	d.name,
+	d.age,
+	d.breed,
+	d.profile_image
+	FROM doggy_dates dd
+		JOIN users u ON dd.user = u.id
+		JOIN dogs d ON d.owner = u.id;`)
 	if err != nil {
 		log.Println("GetAllDoggyDates Preparation Err: ", err)
 	}
@@ -176,13 +259,16 @@ func (d *Db) GetAllDoggyDates() ([]types.Date, error) {
 		log.Println("GetAllDoggyDates Query Err: ", err)
 	}
 
-	// Create User struct for holding each row's data
 	var date types.Date
-	// Create slice of Users for our response
-	dates := []types.Date{}
+	var u types.User
+	uMap := map[graphql.ID]types.User{}
+	var dog types.Dog
+	dogMap := map[graphql.ID]types.Dog{}
+	dates := map[graphql.ID]types.Date{}
 	// Copy the columns from row into the values pointed at by r (User)
 	for rows.Next() {
 		var dateDogs []string
+		var userDogs []string
 		err = rows.Scan(
 			&date.ID,
 			&date.Date,
@@ -190,84 +276,124 @@ func (d *Db) GetAllDoggyDates() ([]types.Date, error) {
 			pq.Array(&dateDogs),
 			&date.Location,
 			&date.User,
+			&u.ID,
+			&u.Name,
+			pq.Array(&userDogs),
+			&u.ProfileImageURL,
+			&dog.ID,
+			&dog.Name,
+			&dog.Age,
+			&dog.Breed,
+			&dog.ProfileImageURL,
 		)
 		if err != nil {
-			log.Println("Error scanning rows: ", err)
-			return []types.Date{}, err
+			log.Println("Error scanning rows huh: ", err)
+			return dates, uMap, dogMap, err
 		}
-		date.Dogs = []graphql.ID{} // required to stop appended new dogs on same array
+		date.Dogs = nil
+		u.Dogs = nil
 		StringToGraphqlID(dateDogs, &date.Dogs)
-		dates = append(dates, date)
+		StringToGraphqlID(userDogs, &u.Dogs)
+		dates[date.ID] = date
+		dogMap[dog.ID] = dog
+		uMap[u.ID] = u
 	}
-	return dates, nil
+	return dates, uMap, dogMap, nil
 }
 
-// InsertUser queries database to insert user row
-func (d *Db) InsertUser(id graphql.ID, name string, email string, dogId graphql.ID) (types.User, error) {
+// InsertUserDog queries database to insert user row
+func (d *Db) InsertUserDog(name string, email string, uImg string, dname string,
+	age int32, breed string, dImg string) (types.User, types.Dog, error) {
 	// Prepare query, takes arguments, protects from sql injection
-	did, _ := uuid.FromString(string(dogId))
+	did, _ := uuid.NewV1()
 	var di = []uuid.UUID{did}
-	stmt, err := d.Prepare("INSERT INTO users VALUES ($1, $2, $3, $4)")
+	stmt, err := d.Prepare(`WITH createAccount AS (
+		INSERT INTO users VALUES ($1, $2, $3, $4, $5)
+	  ) INSERT INTO dogs VALUES ($6, $7, $8, $9, $10, $11);`)
 	if err != nil {
-		log.Println("InsertUser Preparation Err: ", err)
+		log.Println("InsertUserDog Preparation Err: ", err)
 	}
 	defer stmt.Close()
-	uid, _ := uuid.FromString(string(id))
-	if _, err := stmt.Exec(uid, name, email, pq.Array(di)); err != nil {
-		log.Println("InsertUser Execution Err: ", err)
-		return types.User{}, err
+	uid, _ := uuid.NewV1()
+	if _, err := stmt.Exec(uid, name, email, pq.Array(di), uImg, did, dname, age, breed, uid, dImg); err != nil {
+		log.Println("InsertUserDog Execution Err: ", err)
+		return types.User{}, types.Dog{}, err
 	}
-	return types.User{ID: id, Name: name, Email: email, Dogs: []graphql.ID{dogId}}, nil
+	return types.User{ID: graphql.ID(uid.String()), Name: name, Email: email, Dogs: []graphql.ID{graphql.ID(did.String())}},
+		types.Dog{ID: graphql.ID(did.String()), Name: dname, Age: age, Breed: breed, Owner: graphql.ID(uid.String()), ProfileImageURL: dImg}, nil
 }
 
 // InsertDog queries database to insert dog row
-func (d *Db) InsertDog(id graphql.ID, name string, age int32, breed string, ownerId graphql.ID) (graphql.ID, error) {
-	// Prepare query, takes arguments, protects from sql injection
-	stmt, err := d.Prepare("INSERT INTO dogs VALUES ($1, $2, $3, $4, $5)")
-	if err != nil {
-		log.Println("InsertDog Preparation Err: ", err)
-	}
-	defer stmt.Close()
-	did, _ := uuid.FromString(string(id))
-	uid, _ := uuid.FromString(string(ownerId))
-	if _, err := stmt.Exec(did, name, int64(age), breed, uid); err != nil {
-		log.Println("InsertDog Execution Err: ", err)
-		return "", err
-	}
-	return id, nil
-}
+// func (d *Db) InsertDog(id graphql.ID, name string, age int32, breed string, ownerId graphql.ID) (graphql.ID, error) {
+// 	// Prepare query, takes arguments, protects from sql injection
+// 	stmt, err := d.Prepare("INSERT INTO dogs VALUES ($1, $2, $3, $4, $5)")
+// 	if err != nil {
+// 		log.Println("InsertDog Preparation Err: ", err)
+// 	}
+// 	defer stmt.Close()
+// 	did, _ := uuid.FromString(string(id))
+// 	uid, _ := uuid.FromString(string(ownerId))
+// 	if _, err := stmt.Exec(did, name, int64(age), breed, uid); err != nil {
+// 		log.Println("InsertDog Execution Err: ", err)
+// 		return "", err
+// 	}
+// 	return id, nil
+// }
 
 // InsertDoggyDate queries database to insert dog row
-func (d *Db) InsertDoggyDate(id graphql.ID, date string, description string, dogIds []graphql.ID, location string, user graphql.ID) (types.Date, error) {
+func (d *Db) InsertDoggyDate(date string, description string, dogIds []graphql.ID, location string, user graphql.ID) (types.Date, error) {
 	stmt, err := d.Prepare("INSERT INTO doggy_dates VALUES ($1, $2, $3, $4, $5, $6)")
 	if err != nil {
 		log.Println("InsertInsertDoggyDateDog Preparation Err: ", err)
 	}
 	defer stmt.Close()
+
 	var dus []uuid.UUID
-	dus = GraphqlIDToUUID(dogIds, dus)
-	did, _ := uuid.FromString(string(id))
+	GraphqlIDToUUID(dogIds, &dus)
+	did, _ := uuid.NewV1()
 	uid, _ := uuid.FromString(string(user))
 	if _, err := stmt.Exec(did, date, description, pq.Array(dus), location, uid); err != nil {
 		log.Println("InsertDoggyDate Exec Err: ", err)
 		return types.Date{}, err
 	}
-	return types.Date{ID: id, Date: date, Description: description, Dogs: dogIds, Location: location, User: user}, nil
+	return types.Date{ID: graphql.ID(did.String()), Date: date, Description: description, Dogs: dogIds, Location: location, User: user}, nil
 }
 
 // DeleteDog queries database to insert dog row
-func (d *Db) DeleteDog(id graphql.ID) (bool, error) {
-	// Prepare query, takes a id argument, protects from sql injection
-	stmt, err := d.Prepare("DELETE FROM dogs WHERE id=$1")
+// func (d *Db) DeleteDog(id graphql.ID) (bool, error) {
+// Prepare query, takes a id argument, protects from sql injection
+// 	stmt, err := d.Prepare("DELETE FROM dogs WHERE id=$1")
+// 	if err != nil {
+// 		log.Println("DeleteDog Preparation Err: ", err)
+// 		return false, err
+// 	}
+// 	defer stmt.Close()
+// 	did, _ := uuid.FromString(string(id))
+// 	if _, err := stmt.Exec(did); err != nil {
+// 		return true, err
+// 	}
+// 	return false, nil
+// }
+
+// CheckAccountExists queries database if user email, user ID, and dog ID exists
+func (d *Db) CheckAccountExists(id graphql.ID, email string, dogID graphql.ID) (bool, bool, bool, error) {
+	stmt, err := d.Prepare(`SELECT u.id, u.email, d.id FROM users u, dogs d
+	WHERE u.id = $1 OR u.email = $2 OR d.id = $3;`)
 	if err != nil {
-		log.Println("DeleteDog Preparation Err: ", err)
+		log.Println("CheckAccountExists Preparation Err: ", err)
+		return true, true, true, err
 	}
+
 	defer stmt.Close()
-	did, _ := uuid.FromString(string(id))
-	if _, err := stmt.Exec(did); err != nil {
-		return true, err
+	var uidExists, emailExists, didExists bool
+	uid, _ := uuid.FromString(string(id))
+	did, _ := uuid.FromString(string(dogID))
+	err = stmt.QueryRow(uid, email, did).Scan(&uidExists, &emailExists, &didExists)
+	if err == sql.ErrNoRows {
+		log.Println("CheckAccountExists Query Err: ", err)
+		return uidExists, emailExists, didExists, err
 	}
-	return false, nil
+	return uidExists, emailExists, didExists, nil
 }
 
 // CheckIDExists queries database if user or dog ID exists
@@ -298,7 +424,7 @@ func (d *Db) CheckEmailExists(email string) (bool, error) {
 	var exists string
 	err = stmt.QueryRow(email).Scan(&exists)
 	if err == sql.ErrNoRows {
-		log.Println("CheckEmailExists Query Err: ", err)
+		log.Println("CheckEmailExists Query email exists ", err)
 		return false, err
 	}
 	return true, nil
@@ -330,19 +456,17 @@ func StringToGraphqlID(s []string, gqlS *[]graphql.ID) {
 }
 
 // GraphqlIDToUUID convert graphqlID array to UUID array
-func GraphqlIDToUUID(gqlS []graphql.ID, u []uuid.UUID) []uuid.UUID {
+func GraphqlIDToUUID(gqlS []graphql.ID, u *[]uuid.UUID) {
 	for i := 0; i < len(gqlS); i++ {
 		x, _ := uuid.FromString(string(gqlS[i]))
-		u = append(u, x)
+		*u = append(*u, x)
 	}
-	return u
 }
 
 // UUIDToGraphqlID convert UUID array to graphqlID array
-func UUIDToGraphqlID(uid []uuid.UUID, gid []graphql.ID) []graphql.ID {
+func UUIDToGraphqlID(uid []uuid.UUID, gid *[]graphql.ID) {
 	for i := 0; i < len(uid); i++ {
 		x := graphql.ID(uid[i].String())
-		gid = append(gid, x)
+		*gid = append(*gid, x)
 	}
-	return gid
 }
