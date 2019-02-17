@@ -39,29 +39,37 @@ type DoggyDateResolver struct {
 
 // User graphql query
 func (r *Resolver) User(args struct{ ID graphql.ID }) (*UserResolver, error) {
+	// Check if valid UUID
 	uid, err := uuid.FromString(string(args.ID))
 	if err != nil {
+		log.Println(err)
 		return &UserResolver{nil, nil, r.Db}, err
 	}
 	user, dogs, err := r.Db.GetUsersByID(uid)
 	if err != nil {
+		log.Println(err)
 		return &UserResolver{nil, nil, r.Db}, err
 	}
 	data := &UserResolver{&user, &dogs, r.Db}
+	log.Println("Resolve: user graphql query")
 	return data, nil
 }
 
 // Dog graphql query
 func (r *Resolver) Dog(args struct{ ID graphql.ID }) (*DogResolver, error) {
+	// Check if valid UUID
 	did, err := uuid.FromString(string(args.ID))
 	if err != nil {
+		log.Println(err)
 		return &DogResolver{&types.Dog{}, &[]types.Dog{}, r.Db, &types.User{}}, err
 	}
 	dogs, user, err := r.Db.GetDogByID(did)
 	if err != nil {
+		log.Println(err)
 		return &DogResolver{&types.Dog{}, &[]types.Dog{}, r.Db, &user}, err
 	}
 	data := &DogResolver{&dogs[0], &dogs, r.Db, &user}
+	log.Println("Resolve: dog graphql query")
 	return data, nil
 }
 
@@ -69,6 +77,7 @@ func (r *Resolver) Dog(args struct{ ID graphql.ID }) (*DogResolver, error) {
 func (r *Resolver) LoginUser(args struct{ Email string }) (*UserResolver, error) {
 	user, dogs, err := r.Db.GetUserByEmail(args.Email)
 	if err != nil {
+		log.Println(err)
 		return &UserResolver{nil, nil, r.Db}, err
 	}
 	data := &UserResolver{&user, &dogs, r.Db}
@@ -91,12 +100,13 @@ func (r *Resolver) CreateUser(args *struct {
 		log.Println("Pass: unused email")
 		user, dog, err := r.Db.InsertUserDog(args.Name, args.Email, args.UserProfileImageURL, args.DogName, args.DogAge, args.DogBreed, args.DogProfileImageURL)
 		if err != nil {
-			log.Println("Error: ", err)
+			log.Println(err)
 			return &UserResolver{&types.User{}, &[]types.Dog{}, r.Db}, err
 		}
-		log.Println("Success: Created user")
+		log.Println("Resolve: createUser graphql mutation")
 		return &UserResolver{&user, &[]types.Dog{dog}, r.Db}, nil
 	}
+	log.Printf("Error: Email %s already exists", args.Email)
 	return &UserResolver{&types.User{}, &[]types.Dog{}, r.Db}, fmt.Errorf("Error: Email %s already exists", args.Email)
 }
 
@@ -165,17 +175,20 @@ func (r *DogResolver) ProfileImageURL() *string {
 
 // GetDoggyDates function required by graphql query
 func (r *Resolver) GetDoggyDates() (*[]*DoggyDateResolver, error) {
-	if dates, users, dogs, err := r.Db.GetAllDoggyDates(); err == nil {
-		var ddr []*DoggyDateResolver
-		for _, v := range dates {
-			date := new(types.Date)
-			*date = v
-			u := users[v.User]
-			ddr = append(ddr, &DoggyDateResolver{date, r.Db, &u, &dogs})
-		}
-		return &ddr, err
+	dates, users, dogs, err := r.Db.GetAllDoggyDates()
+	if err != nil {
+		log.Println(err)
+		return &[]*DoggyDateResolver{{&types.Date{}, r.Db, &types.User{}, &map[graphql.ID]types.Dog{}}}, err
 	}
-	return &[]*DoggyDateResolver{{&types.Date{}, r.Db, &types.User{}, &map[graphql.ID]types.Dog{}}}, nil
+	var ddr []*DoggyDateResolver
+	for _, v := range dates {
+		date := new(types.Date)
+		*date = v
+		u := users[v.User]
+		ddr = append(ddr, &DoggyDateResolver{date, r.Db, &u, &dogs})
+	}
+	log.Println("Resolve: getDoggyDates graphql query")
+	return &ddr, nil
 }
 
 // PlanDate graphql mutation
@@ -188,10 +201,12 @@ func (r *Resolver) PlanDate(args *struct {
 }) (*DoggyDateResolver, error) {
 	date, err := r.Db.InsertDoggyDate(args.Date, args.Description, args.Dogs, args.Location, args.User)
 	if err != nil {
+		log.Println(err)
 		return &DoggyDateResolver{}, err
 	}
 	dogMap, uMap, _ := r.Db.GetDogsByArray(args.Dogs)
 	u := uMap[date.User]
+	log.Println("Resolve: planDate graphql mutation")
 	return &DoggyDateResolver{&date, r.Db, &u, &dogMap}, err
 }
 
